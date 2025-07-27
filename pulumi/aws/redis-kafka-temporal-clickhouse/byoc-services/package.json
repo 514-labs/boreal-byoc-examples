@@ -1,0 +1,14 @@
+{
+  "name": "hosting-platform-infrastructure-aws",
+  "main": "src/index.ts",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.163.0",
+    "@pulumi/aws": "^6.74.0",
+    "@pulumi/eks": "^3.8.1",
+    "@pulumi/kubernetes": "^4.22.1"
+  }
+}
