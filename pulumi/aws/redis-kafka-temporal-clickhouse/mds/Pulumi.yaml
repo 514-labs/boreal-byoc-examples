@@ -1,0 +1,3 @@
+name: BYOC-Example_AWS-Redis-Kafka-Temporal-Clickhouse
+runtime: nodejs
+description: Pulumi stacks for the BYOC-Example_AWS-Redis-Kafka-Temporal-Clickhouse
