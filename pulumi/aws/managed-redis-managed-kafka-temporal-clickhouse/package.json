@@ -1,0 +1,32 @@
+{
+  "name": "byoc-example-aws-managed-services",
+  "version": "1.0.0",
+  "description": "Pulumi project for AWS managed services with Redis, Kafka, Temporal, and ClickHouse",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "npx tsx launcher.ts up",
+    "deploy:all": "npx tsx launcher.ts up",
+    "destroy:all": "npx tsx launcher.ts destroy",
+    "deploy:byoc": "pulumi up --stack byoc-services",
+    "preview:all": "pnpm run preview:base && pnpm run preview:byoc",
+    "preview:base": "pulumi preview --stack base",
+    "preview:byoc": "pulumi preview --stack byoc-services",
+
+    "stack:select": "pulumi stack select",
+    "stack:list": "pulumi stack ls"
+  },
+  "dependencies": {
+    "@pulumi/aws": "catalog:",
+    "@pulumi/command": "catalog:",
+    "@pulumi/eks": "catalog:",
+    "@pulumi/kubernetes": "catalog:",
+    "@pulumi/pulumi": "catalog:",
+    "@pulumi/random": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "chalk": "catalog:",
+    "ts-node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
