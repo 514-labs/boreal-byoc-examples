@@ -1,2 +1,14 @@
 packages:
   - "pulumi/aws/**/*"
+
+catalog:
+  "@pulumi/pulumi": ^3.163.0
+  "@pulumi/aws": ^6.74.0
+  "@pulumi/command": ^1.1.0
+  "@pulumi/eks": ^3.8.1
+  "@pulumi/kubernetes": ^4.22.1
+  "@pulumi/random": ^4.15.1
+  "@types/node": ^22.5.0
+  typescript: ^5.5.4
+  chalk: ^4.1.2
+  ts-node: ^10.9.0
