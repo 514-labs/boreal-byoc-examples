@@ -1,0 +1,29 @@
+environment:
+  - byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+config:
+  # Redis (ElastiCache) Configuration
+  redisNodeType: cache.t3.micro
+  redisPort: 6379
+  redisNumCacheNodes: 2
+  redisSnapshotWindow: "09:00-13:00"
+  redisMaintenanceWindow: "sun:05:00-sun:09:00"
+  redisSnapshotRetentionLimit: 10
+  redisAutomaticFailoverEnabled: true
+
+  # Kafka (MSK) Configuration
+  kafkaEbsVolumeSize: 100
+  kafkaNumberOfBrokerNodes: 3
+  kafkaInstanceType: kafka.t3.small
+
+  # Temporal Configuration
+  temporalReplicas: 1
+  temporalCassandraReplicas: 1
+  temporalElasticsearchReplicas: 1
+  temporalNamespaceRetention: 30d
+
+  # ClickHouse Configuration
+  clickhouseShards: 1
+  clickhouseReplicas: 1
+  clickhouseRequestedCpu: 1
+  clickhouseStorageSize: 100Gi
+  clickhouseRequestedMemory: 1Gi
