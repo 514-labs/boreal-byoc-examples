@@ -1,0 +1,22 @@
+environment:
+- default/byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+config:
+  # AWS Configuration
+  awsProfile: sandbox-admin
+
+  # VPC Configuration
+  vpcCidrBlock: 10.192.0.0/16
+
+  eksClusterName: boreal-byoc-eks-cluster
+  eksPrivateEndpointEnabled: true
+  eksPublicEndpointEnabled: true
+
+  # Jump Box Configuration
+  jumpboxEnabled: true
+  jumpboxName: boreal-byoc-jump-box
+  jumpboxInstanceType: t3.micro
+  # tailscaleAuthKey is pulled from the ESC environment
+
+  # Tailscale Configuration
+  # tailscaleClientId: ""  # pulled from the ESC environment
+  # tailscaleClientSecret: ""  # pulled from the ESC environment

@@ -1,0 +1,34 @@
+environment:
+  - byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+config:
+  mdsChartVersion: 0.7.4
+  mdsEnvironment: byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  mdsImageTag: add4ac3592
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::org_30cI9M4reuGKbT6mDiYKHikTiR5::aws::us-east-2
+  # Redis (ElastiCache) Configuration
+  redisNodeType: cache.t3.micro
+  redisPort: 6379
+  redisNumCacheNodes: 2
+  redisSnapshotWindow: "09:00-13:00"
+  redisMaintenanceWindow: "sun:05:00-sun:09:00"
+  redisSnapshotRetentionLimit: 10
+  redisAutomaticFailoverEnabled: true
+
+  # Kafka (MSK) Configuration
+  kafkaEbsVolumeSize: 100
+  kafkaNumberOfBrokerNodes: 3
+  kafkaInstanceType: kafka.t3.small
+
+  # Temporal Configuration
+  temporalReplicas: 1
+  temporalCassandraReplicas: 1
+  temporalElasticsearchReplicas: 1
+  temporalNamespaceRetentionDays: 30
+
+  # ClickHouse Configuration
+  clickhouseShards: 1
+  clickhouseReplicas: 1
+  clickhouseRequestedCpu: 1
+  clickhouseStorageSize: 100Gi
+  clickhouseRequestedMemory: 1Gi

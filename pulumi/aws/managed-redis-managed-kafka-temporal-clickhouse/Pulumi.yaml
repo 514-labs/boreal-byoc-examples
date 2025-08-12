@@ -1,0 +1,13 @@
+name: BYOC-Example_AWS-Managed-Redis-Kafka-Self-Hosted-Temporal-Clickhouse
+runtime: nodejs
+description: Pulumi project for AWS managed services with Redis, Kafka, Temporal, and ClickHouse
+
+config:
+  # This overrides the project-level aws:region if it was set
+  aws:region: us-east-2
+  aws:profile: sandbox-admin
+  
+  # Common tags to be applied across all stacks
+  tagCloud: aws
+  tagEnvironment: byoc-testing
+  # Project tag will be dynamically added using pulumi.getProject()
