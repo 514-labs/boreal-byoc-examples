@@ -8,6 +8,7 @@
     "deploy:all": "npx tsx launcher.ts up",
     "destroy:all": "npx tsx launcher.ts destroy",
     "deploy:byoc": "pulumi up --stack byoc-services",
+    "deploy:mds": "pulumi up --stack mds",
     "preview:all": "pnpm run preview:base && pnpm run preview:byoc",
     "preview:base": "pulumi preview --stack base",
     "preview:byoc": "pulumi preview --stack byoc-services",
