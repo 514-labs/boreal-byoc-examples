@@ -40,12 +40,6 @@ async function main() {
 
   /// Redis Configuration - Required for Communication with Boreal Web Control Plane
   const redisProdDbUrl = config.require("redisProdDBURL");
-  const redisProdMdsRequestChannel = config.require("redisProdMdsRequestChannel");
-  const redisProdRegion = config.require("redisProdRegion");
-  const redisProdDbName = config.require("redisProdDBName");
-  const redisProdApiKey = config.requireSecret("redisProdApiKey");
-  const redisProdSecretKey = config.requireSecret("redisProdSecretKey");
-  const redisProdSubscriptionId = config.require("redisProdSubscriptionId");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -87,12 +81,6 @@ async function main() {
     awsMdsRegion: awsRegion,
     awsBorealConnectionHub,
     redisProdDbUrl,
-    redisProdMdsRequestChannel,
-    redisProdRegion,
-    redisProdDbName,
-    redisProdApiKey,
-    redisProdSecretKey,
-    redisProdSubscriptionId,
   }, releaseOpts);
 }
 

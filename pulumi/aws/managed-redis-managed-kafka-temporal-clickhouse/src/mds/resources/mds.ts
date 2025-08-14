@@ -18,12 +18,6 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
-  redisProdMdsRequestChannel: string;
-  redisProdRegion: string;
-  redisProdDbName: string;
-  redisProdApiKey: pulumi.Output<string>;
-  redisProdSecretKey: pulumi.Output<string>;
-  redisProdSubscriptionId: string;
 }
 
 /**
@@ -101,12 +95,6 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             data: {
               "connection-string": args.redisProdDbUrl,
               "mds-cluster-prefix": args.mdsClusterPrefix,
-              "mds-request-channel": args.redisProdMdsRequestChannel,
-              "region": args.redisProdRegion,
-              "db-name": args.redisProdDbName,
-              "api-key": args.redisProdApiKey,
-              "secret-key": args.redisProdSecretKey,
-              "subscription-id": args.redisProdSubscriptionId,
             },
           },
           /// These secrets were created in the byoc-services stack
