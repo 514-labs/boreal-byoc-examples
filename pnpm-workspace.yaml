@@ -9,6 +9,7 @@ catalog:
   "@pulumi/kubernetes": ^4.22.1
   "@pulumi/random": ^4.15.1
   "@types/node": ^22.5.0
-  typescript: ^5.5.4
+  axios: ^1.7.7
   chalk: ^4.1.2
   ts-node: ^10.9.0
+  typescript: ^5.5.4
