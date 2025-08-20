@@ -43,6 +43,9 @@ export async function createEksCluster(args: EksClusterArgs) {
       enabled: true,
     },
 
+    // Create OIDC provider for IRSA (IAM Roles for Service Accounts)
+    createOidcProvider: true,
+
     endpointPrivateAccess: args.privateEndpointEnabled,
     endpointPublicAccess: args.publicEndpointEnabled,
 
