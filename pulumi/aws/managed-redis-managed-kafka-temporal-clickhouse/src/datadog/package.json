@@ -1,0 +1,16 @@
+{
+  "name": "hosting-moose-platform-datadog",
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "@pulumi/docker": "catalog:",
+    "@pulumi/gcp": "catalog:",
+    "@pulumi/kubernetes": "catalog:",
+    "@pulumi/pulumi": "catalog:",
+    "@pulumi/random": "catalog:",
+    "typescript": "catalog:",
+    "axios": "catalog:"
+  }
+}
