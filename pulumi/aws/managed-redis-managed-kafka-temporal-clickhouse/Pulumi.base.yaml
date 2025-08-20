@@ -1,12 +1,7 @@
 environment:
 - default/byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
 config:
-  # AWS Configuration
-  awsProfile: sandbox-admin
-
-  # VPC Configuration
-  vpcCidrBlock: 10.192.0.0/16
-
+  # EKS Configuration
   eksClusterName: boreal-byoc-eks-cluster
   eksPrivateEndpointEnabled: true
   eksPublicEndpointEnabled: true
