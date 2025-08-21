@@ -7,10 +7,13 @@ config:
   aws:region: us-east-2
   aws:profile: sandbox-admin
   awsProfile: sandbox-admin
-  
+
   # Common tags to be applied across all stacks
   tagCloud: aws
   tagEnvironment: byoc-testing
+
+  # Boreal Org ID
+  orgId: org_31WRrwB8xQhMl5RcaWBWoU38jI4
 
   # VPC Configuration
   vpcCidrBlock: 10.192.0.0/16

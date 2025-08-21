@@ -27,3 +27,9 @@ config:
   clickhouseRequestedCpu: 1
   clickhouseStorageSize: 100Gi
   clickhouseRequestedMemory: 1Gi
+
+  clickhouseS3CacheSizeGB: 10
+  clickhouseHotMaxPartSizeGB: 1
+  clickhouseHotColdMoveFactor: 0.2
+  clickhouseS3GlacierIrDays: 365
+  clickhouseS3NoncurrentExpireDays: 400

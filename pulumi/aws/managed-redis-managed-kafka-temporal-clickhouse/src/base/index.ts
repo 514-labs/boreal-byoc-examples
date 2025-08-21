@@ -5,6 +5,7 @@ import { createEksCluster } from "./resources/eks";
 import { createVpc } from "./resources/base-vpc/vpc";
 import { createJumpBox } from "./resources/jump-box";
 import { installTailscaleOperator } from "./resources/tailscale";
+import { createGp3StorageClass } from "./resources/storage-class-gp3";
 import { getKubeconfig } from "./utils/kubeconfig";
 
 /**
@@ -107,12 +108,16 @@ async function main() {
     releaseOpts
   );
 
+  // Create gp3 storage class for better performance with EBS volumes
+  const gp3StorageClass = await createGp3StorageClass(eksCluster, k8sProvider);
+
   return {
     vpc,
     publicSubnets,
     isolatedSubnets,
     privateSubnets,
     eksCluster,
+    gp3StorageClass,
   };
 }
 

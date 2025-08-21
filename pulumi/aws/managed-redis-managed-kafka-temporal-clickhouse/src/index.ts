@@ -1,4 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
+import * as aws from "@pulumi/aws";
 
 // Get the current stack name
 const stack = pulumi.getStack();
@@ -55,6 +56,8 @@ const executeStack = async () => {
       eksCluster: outputs.eksCluster,
       kubeconfig: outputs.eksCluster?.kubeconfig,
       eksSecurityGroupId: outputs.eksCluster?.core?.cluster?.vpcConfig?.clusterSecurityGroupId,
+      eksClusterName: outputs.eksCluster?.core?.cluster?.name,
+      eksOidcProviderArn: outputs.eksCluster?.oidcProviderArn,
     };
   } else if (stack === "byoc-services" && outputs) {
     // Export byoc-services outputs if any
