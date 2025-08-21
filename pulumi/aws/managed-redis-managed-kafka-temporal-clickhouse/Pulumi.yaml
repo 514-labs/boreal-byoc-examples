@@ -6,8 +6,15 @@ config:
   # This overrides the project-level aws:region if it was set
   aws:region: us-east-2
   aws:profile: sandbox-admin
+  awsProfile: sandbox-admin
   
   # Common tags to be applied across all stacks
   tagCloud: aws
   tagEnvironment: byoc-testing
+
+  # VPC Configuration
+  vpcCidrBlock: 10.192.0.0/16
+
+  datadogClusterName: boreal-org_31WRrwB8xQhMl5RcaWBWoU38jI4
+
   # Project tag will be dynamically added using pulumi.getProject()

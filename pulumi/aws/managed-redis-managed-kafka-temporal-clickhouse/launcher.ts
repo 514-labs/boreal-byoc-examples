@@ -12,6 +12,7 @@ async function deployAllStacks() {
   const stacks = [
     { name: "base", description: "VPC, EKS, and networking infrastructure" },
     { name: "byoc-services", description: "Redis, Kafka, Temporal, and ClickHouse services" },
+    { name: "datadog", description: "Datadog" },
     { name: "mds", description: "MDS - Moose Deployment Service" },
   ];
 

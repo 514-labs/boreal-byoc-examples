@@ -16,6 +16,11 @@ async function main() {
       const byocServicesModule = await import("./byoc-services");
       return await byocServicesModule.main();
 
+    case "datadog":
+      console.log("Running Datadog stack...");
+      const datadogModule = await import("./datadog");
+      return await datadogModule.main();
+
     case "mds":
       console.log("Running MDS stack...");
       const mdsModule = await import("./mds");
@@ -28,12 +33,12 @@ async function main() {
       console.log("Or run: ts-node deploy-all.ts up");
       return {
         message: "Use the deploy-all script to deploy all stacks in order",
-        stacks: ["base", "byoc-services", "mds"],
+        stacks: ["base", "byoc-services", "datadog", "mds"],
       };
 
     default:
       throw new Error(
-        `Unknown stack: ${stack}. Valid stacks are: base, secrets, byoc-services, mds, all`
+        `Unknown stack: ${stack}. Valid stacks are: base, secrets, byoc-services, datadog, mds, all`
       );
   }
 }
