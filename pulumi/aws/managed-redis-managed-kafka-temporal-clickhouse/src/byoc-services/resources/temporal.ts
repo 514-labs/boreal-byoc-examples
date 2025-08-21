@@ -6,6 +6,8 @@ export interface TemporalArgs {
   cassandraReplicas: number;
   namespaceRetention: number;
   elasticsearchReplicas: number;
+  cassandraStorageSize: string;
+  elasticsearchStorageSize: string;
   releaseOpts: pulumi.CustomResourceOptions;
 }
 
@@ -36,19 +38,40 @@ export async function installTemporal(args: TemporalArgs) {
               namespace: [
                 {
                   name: "default",
-                  retention: args.namespaceRetention.toString(),
+                  retention: `${args.namespaceRetention}d`,
                 },
               ],
             },
           },
         },
         cassandra: {
+          persistence: {
+            enabled: true,
+            storageClass: "gp3",
+            size: args.cassandraStorageSize,
+          },
           config: {
             cluster_size: args.cassandraReplicas,
           },
         },
         elasticsearch: {
+          enabled: true,
           replicas: args.elasticsearchReplicas,
+          persistence: {
+            enabled: true,
+            labels: {
+              enabled: true,
+            },
+          },
+          volumeClaimTemplate: {
+            accessModes: ["ReadWriteOnce"],
+            storageClassName: "gp3",
+            resources: {
+              requests: {
+                storage: args.elasticsearchStorageSize,
+              },
+            },
+          },
         },
         prometheus: {
           enabled: false,

@@ -38,6 +38,8 @@ async function main() {
   const temporalCassandraReplicas = parseInt(config.require("temporalCassandraReplicas"));
   const temporalElasticsearchReplicas = parseInt(config.require("temporalElasticsearchReplicas"));
   const temporalNamespaceRetention = parseInt(config.require("temporalNamespaceRetention"));
+  const temporalCassandraStorageSize = config.get("temporalCassandraStorageSize") ?? "50Gi";
+  const temporalElasticsearchStorageSize = config.get("temporalElasticsearchStorageSize") ?? "100Gi";
 
   const clickhouseShards = parseInt(config.require("clickhouseShards"));
   const clickhouseStorageSize = config.require("clickhouseStorageSize");
@@ -142,6 +144,8 @@ async function main() {
           cassandraReplicas: temporalCassandraReplicas,
           elasticsearchReplicas: temporalElasticsearchReplicas,
           namespaceRetention: temporalNamespaceRetention,
+          cassandraStorageSize: temporalCassandraStorageSize,
+          elasticsearchStorageSize: temporalElasticsearchStorageSize,
           releaseOpts: releaseOpts,
         });
 
