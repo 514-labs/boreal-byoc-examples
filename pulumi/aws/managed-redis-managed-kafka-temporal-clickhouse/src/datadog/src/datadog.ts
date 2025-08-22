@@ -53,9 +53,6 @@ export function createDatadog(clusterName: string, datadogApiKey: pulumi.Output<
     "kube_namespace:k6-operator-system",
     "kube_namespace:k6-plz-ns",
   ].join(" ");
-  // const containerExcludeList = [
-  //   "kube_namespace:.*"
-  // ].join(" ");
 
   // Create chart with AWS EKS configuration
   // Based on Datadog documentation for AWS EKS monitoring
@@ -174,11 +171,9 @@ export function createDatadog(clusterName: string, datadogApiKey: pulumi.Output<
 
           securityAgent: {
             runtime: {
-              // Enable when we are on gke 1.32 or higher
               enabled: false,
             },
             compliance: {
-              // Not supported on Autopilot
               enabled: false,
               host_benchmark: {
                 enabled: true,
