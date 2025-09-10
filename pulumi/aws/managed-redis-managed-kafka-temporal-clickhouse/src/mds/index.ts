@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import { installMds } from "./resources/mds";
+import { createPriorityClasses } from "./resources/priority-classes";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -64,6 +65,8 @@ async function main() {
   const releaseOpts = {
     provider: k8sProvider,
   };
+
+  await createPriorityClasses();
 
   await installMds({
     dockerConfigJson,
