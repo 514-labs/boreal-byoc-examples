@@ -1,5 +1,5 @@
 environment:
-  - byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  - byoc-org_30fev8cygBzNRW7Ta7P34XE8ch3
 config:
   # Redis (ElastiCache) Configuration
   redisNodeType: cache.t3.micro
@@ -24,9 +24,9 @@ config:
   # ClickHouse Configuration
   clickhouseShards: 1
   clickhouseReplicas: 1
-  clickhouseRequestedCpu: 1
+  clickhouseRequestedCpu: 4
   clickhouseStorageSize: 100Gi
-  clickhouseRequestedMemory: 1Gi
+  clickhouseRequestedMemory: 16Gi
 
   clickhouseS3CacheSizeGB: 10
   clickhouseHotMaxPartSizeGB: 1

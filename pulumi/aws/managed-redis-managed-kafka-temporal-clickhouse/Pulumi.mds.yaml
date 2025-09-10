@@ -1,11 +1,11 @@
 environment:
-  - byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  - byoc-org_30fev8cygBzNRW7Ta7P34XE8ch3
 config:
   mdsChartVersion: 0.7.6
-  mdsEnvironment: byoc-org_31WRrwB8xQhMl5RcaWBWoU38jI4
-  mdsImageTag: 90feb0be5d
+  mdsEnvironment: byoc-org_30fev8cygBzNRW7Ta7P34XE8ch3
+  mdsImageTag: b04b1dabce
   mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
-  mdsClusterPrefix: mds::byoc::boreal::org_31WRrwB8xQhMl5RcaWBWoU38jI4::aws::us-east-2
+  mdsClusterPrefix: mds::byoc::boreal::org_30fev8cygBzNRW7Ta7P34XE8ch3::aws::us-east-2
   # Redis (ElastiCache) Configuration
   redisNodeType: cache.t3.micro
   redisPort: 6379

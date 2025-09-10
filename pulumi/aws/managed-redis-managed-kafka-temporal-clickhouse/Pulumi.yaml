@@ -1,23 +1,23 @@
-name: BYOC-Example_AWS-Managed-Redis-Kafka-Self-Hosted-Temporal-Clickhouse
+name: boreal-cust-byoc-org_30fev8cygbznrw7ta7p34xe8ch3
 runtime: nodejs
 description: Pulumi project for AWS managed services with Redis, Kafka, Temporal, and ClickHouse
 
 config:
   # This overrides the project-level aws:region if it was set
   aws:region: us-east-2
-  aws:profile: sandbox-admin
-  awsProfile: sandbox-admin
+  aws:profile: boreal2
+  awsProfile: boreal2
 
   # Common tags to be applied across all stacks
   tagCloud: aws
   tagEnvironment: byoc-testing
 
   # Boreal Org ID
-  orgId: org_31WRrwB8xQhMl5RcaWBWoU38jI4
+  orgId: org_30fev8cygbznrw7ta7p34xe8ch3
 
   # VPC Configuration
   vpcCidrBlock: 10.192.0.0/16
 
-  datadogClusterName: boreal-org_31WRrwB8xQhMl5RcaWBWoU38jI4
+  datadogClusterName: boreal-org_30fev8cygbznrw7ta7p34xe8ch3
 
   # Project tag will be dynamically added using pulumi.getProject()

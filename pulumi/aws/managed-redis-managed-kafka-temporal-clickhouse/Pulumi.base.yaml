@@ -1,7 +1,12 @@
 environment:
-- default/byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  - default/byoc-org_30fev8cygBzNRW7Ta7P34XE8ch3
 config:
-  # EKS Configuration
+  # AWS Configuration
+  awsProfile: boreal2
+
+  # VPC Configuration
+  vpcCidrBlock: 10.192.0.0/16
+
   eksClusterName: boreal-byoc-eks-cluster
   eksPrivateEndpointEnabled: true
   eksPublicEndpointEnabled: true

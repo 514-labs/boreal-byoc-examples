@@ -1,7 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
-
 export interface MdsConfig {
   dockerConfigJson: pulumi.Output<string>;
   mdsEnvironment: string;
@@ -27,7 +26,6 @@ export interface MdsConfig {
  * @returns MDS helm resource
  */
 export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomResourceOptions) {
-
   const mds = new k8s.helm.v3.Release(
     "mds",
     {
@@ -39,11 +37,35 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
       namespace: "boreal-system",
       createNamespace: true,
       values: {
+        computeClassConfig: {
+          data: {
+            "moose-compute-class-resources.json": JSON.stringify({
+              "heroux-devtek-moose-276-upgrade-moose-d7ce6": {
+                pod: {
+                  cpu: "4",
+                  memory: "16G",
+                },
+                service: {
+                  replicas: 1,
+                },
+              },
+              "heroux-devtek-moose-main-0a533": {
+                pod: {
+                  cpu: "4",
+                  memory: "16G",
+                },
+                service: {
+                  replicas: 1,
+                },
+              },
+            }),
+          },
+        },
         environment: {
           boreal: {
             webHostingUrl: args.borealWebhookUrl,
             webhookSecret: args.borealWebhookSecret,
-          }
+          },
         },
         deployment: {
           environment: "production",
@@ -87,7 +109,8 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
               region: args.awsMdsRegion || "n/a",
               "access-key-id": args.awsMdsAccessKey || "n/a",
               "secret-access-key": args.awsMdsSecretAccessKey || "n/a",
-              "boreal-connection-hub-vpc-endpoint-service-name": args.awsBorealConnectionHub || "n/a",
+              "boreal-connection-hub-vpc-endpoint-service-name":
+                args.awsBorealConnectionHub || "n/a",
             },
           },
           redis: {

@@ -43,9 +43,11 @@ export async function createMSKCluster(args: KafkaArgs) {
   );
 
   // Create authentication secret
-  const { secret: kafkaSecret, secretVersion: kafkaSecretVersion, password: kafkaPassword } = createMSKAuthSecret(
-    args.commonTags
-  );
+  const {
+    secret: kafkaSecret,
+    secretVersion: kafkaSecretVersion,
+    password: kafkaPassword,
+  } = createMSKAuthSecret(args.commonTags);
 
   // Associate secret with cluster
   const kafkaSecretAssociation = createMSKSecretAssociation(
@@ -165,13 +167,20 @@ function createMSKAuthSecret(commonTags: aws.Tags): {
 
   const kafkaSecretVersion = new aws.secretsmanager.SecretVersion("msk-auth-secret-version", {
     secretId: kafkaSecret.id,
-    secretString: password.result.apply(pwd => JSON.stringify({
-      username: "moose",
-      password: pwd,
-    })),
+    secretString: password.result.apply((pwd) =>
+      JSON.stringify({
+        username: "moose",
+        password: pwd,
+      })
+    ),
   });
 
-  return { secret: kafkaSecret, secretVersion: kafkaSecretVersion, password: password.result, kmsKey: mskKmsKey };
+  return {
+    secret: kafkaSecret,
+    secretVersion: kafkaSecretVersion,
+    password: password.result,
+    kmsKey: mskKmsKey,
+  };
 }
 
 /**
@@ -313,7 +322,7 @@ function createKafkaConfigSecret(
         "cluster-api-url": "", // Not needed for MSK
 
         /// Service Configuration
-        broker: bootstrapBrokersSaslScram,
+        broker: bootstrapBrokersSaslScram.apply((brokers) => brokers.split(",")[0]),
         "sasl-mechanism": "SCRAM-SHA-512",
         "replication-factor": "3",
         "message-timeout-ms": "30000",
