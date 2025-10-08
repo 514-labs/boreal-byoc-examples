@@ -1,0 +1,35 @@
+{
+  "name": "byoc-example-azure-managed-services",
+  "version": "1.0.0",
+  "description": "Pulumi project for Azure managed services with Redis, Event Hubs, Temporal, and ClickHouse",
+  "main": "src/index.ts",
+  "scripts": {
+    "deploy": "npx tsx launcher.ts up",
+    "deploy:all": "npx tsx launcher.ts up",
+    "destroy:all": "npx tsx launcher.ts destroy",
+    "destroy:base": "pulumi destroy --stack base",
+    "destroy:byoc": "pulumi destroy --stack byoc-services",
+    "destroy:mds": "pulumi destroy --stack mds",
+    "deploy:base": "pulumi up --stack base",
+    "deploy:byoc": "pulumi up --stack byoc-services",
+    "deploy:mds": "pulumi up --stack mds",
+    "preview:base": "pulumi preview --stack base",
+    "preview:byoc": "pulumi preview --stack byoc-services",
+    "stack:select": "pulumi stack select",
+    "stack:list": "pulumi stack ls"
+  },
+  "dependencies": {
+    "@pulumi/azure-native": "catalog:",
+    "@pulumi/command": "catalog:",
+    "@pulumi/kubernetes": "catalog:",
+    "@pulumi/pulumi": "catalog:",
+    "@pulumi/random": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "axios": "catalog:",
+    "chalk": "catalog:",
+    "ts-node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
