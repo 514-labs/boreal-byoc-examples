@@ -1,0 +1,32 @@
+#### this must be defined in each stack
+environment:
+  - default/byoc-org_33nWBYhligmqe8vaOutB3mzWid4
+
+config:
+  name: boreal-byoc
+  aksNodeVmSize: standard_d4d_v4
+  aksVnetCidrBlock: 10.193.0.0/16
+  apiServerSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-api-server-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+  isolatedSubnetNsgRules: '[{"access":"Deny","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"deny-internet-outbound","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"},{"access":"Allow","destinationAddressPrefix":"VirtualNetwork","destinationPortRange":"*","direction":"Outbound","name":"allow-vnet-outbound","priority":110,"protocol":"*","sourceAddressPrefix":"VirtualNetwork","sourcePortRange":"*"}]'
+  jumpboxAdminUsername: ubuntu
+  jumpboxEnabled: "false"
+  jumpboxInstanceType: Standard_DS2_v2
+  jumpboxName: boreal-jump-box
+  jumpboxSshPublicKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDsample
+  privateSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-aks-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+  publicSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+  # Tailscale Configuration
+  # tailscaleClientId: ""  # pulled from the ESC environment
+  # tailscaleClientSecret: ""  # pulled from the ESC environment
+  aksAdminGroupObjectIds: '["bd7d7362-4096-450a-86ab-48bb6c0a4bed"]'
+  # Note: To add individual users, add them to an Azure AD group and include the group ID above,
+  # or grant access via Kubernetes RBAC after cluster creation
+
+  # Managed Namespace Configuration for ClickHouse
+  # Managed namespaces provide namespace-level resource quotas that bypass cluster-wide policies
+  # This is the recommended approach for workloads requiring >1Gi memory in AKS Automatic
+  # See: https://learn.microsoft.com/en-us/azure/aks/managed-namespaces
+  clickhouseManagedNamespaceCpuRequest: 4000m # CPU request quota per container
+  clickhouseManagedNamespaceCpuLimit: 8000m # CPU limit quota per container (8 cores)
+  clickhouseManagedNamespaceMemoryRequest: 8Gi # Memory request quota per container
+  clickhouseManagedNamespaceMemoryLimit: 16Gi # Memory limit quota per container
