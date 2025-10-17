@@ -1,9 +1,13 @@
 packages:
   - "pulumi/aws/**/*"
+  - "pulumi/azure/**/*"
+  - "pulumi/packages/*"
 
 catalog:
   "@pulumi/pulumi": ^3.163.0
   "@pulumi/aws": ^6.74.0
+  "@pulumi/azure-native": ^3.8.0
+  "@pulumi/docker": ^4.9.0
   "@pulumi/command": ^1.1.0
   "@pulumi/eks": ^3.8.1
   "@pulumi/kubernetes": ^4.22.1
