@@ -106,6 +106,7 @@ async function destroyAllStacks() {
   // Define stacks in REVERSE deployment order for destruction
   const stacks = [
     { name: "mds", description: "MDS - Moose Deployment Service" },
+    { name: "datadog", description: "Datadog" },
     { name: "byoc-services", description: "Redis, EventHubs, Temporal, and ClickHouse services" },
     { name: "base", description: "VNet, AKS, and networking infrastructure" },
   ];
