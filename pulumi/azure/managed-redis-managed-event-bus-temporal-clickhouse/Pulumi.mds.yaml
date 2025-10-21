@@ -1,0 +1,13 @@
+environment:
+  - default/byoc-org_33nWBYhligmqe8vaOutB3mzWid4
+
+config:
+  tagCloud: azure
+  tagEnvironment: byoc-testing
+
+  # MDS Configuration
+  mdsChartVersion: 0.7.6
+  mdsEnvironment: byoc-org_33nWBYhligmqe8vaOutB3mzWid4
+  mdsImageTag: b776bf21df
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::org_33nWBYhligmqe8vaOutB3mzWid4::azure::centralus
