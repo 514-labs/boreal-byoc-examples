@@ -86,7 +86,9 @@
         {
           "in": [
             "memoryAndCPULimitsInKubernetesCluster",
-            "podEnforceAntiaffinityInKubernetesCluster"
+            "podEnforceAntiaffinityInKubernetesCluster",
+            "antiAffinityRules",
+            "containerLimits"
           ],
           "kind": "policyDefinitionReferenceId"
         }

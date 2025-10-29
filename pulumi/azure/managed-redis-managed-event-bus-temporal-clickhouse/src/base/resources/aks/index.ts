@@ -18,16 +18,20 @@ export interface AksArgs {
   nodeVmSize?: pulumi.Input<string>;
   // Optional: make the API server private (only accessible from VNet)
   enablePrivateCluster?: boolean;
+  // Optional: DiskEncryptionSet ID for customer-managed key encryption
+  diskEncryptionSetId?: pulumi.Input<string>;
 }
 
 export async function deployAksCluster(args: AksArgs) {
-  // Create user-assigned identity for AKS with VNet permissions
-  const { aksIdentity, networkContributorRole } = createAksIdentityWithRole({
-    resourceGroupName: args.resourceGroupName,
-    location: args.location,
-    vnetId: args.vnetId,
-    commonTags: args.commonTags,
-  });
+  // Create user-assigned identity for AKS with VNet and DiskEncryptionSet permissions
+  const { aksIdentity, networkContributorRole, diskEncryptionSetReaderRole } =
+    createAksIdentityWithRole({
+      resourceGroupName: args.resourceGroupName,
+      location: args.location,
+      vnetId: args.vnetId,
+      diskEncryptionSetId: args.diskEncryptionSetId,
+      commonTags: args.commonTags,
+    });
 
   // Create cluster via CLI
   const { aksCluster, clusterId } = await createAksClusterWithCli(
@@ -35,5 +39,5 @@ export async function deployAksCluster(args: AksArgs) {
     aksIdentity,
     networkContributorRole
   );
-  return { aksCluster, clusterId };
+  return { aksCluster, clusterId, aksIdentity, diskEncryptionSetReaderRole };
 }

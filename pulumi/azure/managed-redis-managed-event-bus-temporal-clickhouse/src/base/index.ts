@@ -9,6 +9,9 @@ import { createJumpBox } from "./resources/jump-box";
 import { createNetwork } from "./resources/base-vpc/network";
 import { installTailscaleOperator } from "./resources/tailscale";
 import { installGatewayApiCrds } from "./resources/gateway-crds";
+import { createManagedCsiStorageClass } from "./resources/storage-class-managed-csi";
+import { createDiskEncryption } from "./resources/disk-encryption";
+import { createKarpenterNodePool } from "./resources/karpenter-nodepool";
 import { defaultVNetSubnetCIDRSplit, defaultAksServiceNetworkCIDRs } from "./utils/cidr";
 
 async function main() {
@@ -73,6 +76,14 @@ async function main() {
     tags: commonTags,
   });
 
+  // Create Key Vault and DiskEncryptionSet for customer-managed key encryption
+  const { keyVault, encryptionKey, diskEncryptionSet, roleAssignment } = await createDiskEncryption(
+    resourceGroup.name,
+    location,
+    name,
+    commonTags
+  );
+
   // Create network with NSGs and NAT Gateway
   const { vnet, privateSubnet, publicSubnet, isolatedSubnet, apiServerSubnet } =
     await createNetwork({
@@ -99,19 +110,21 @@ async function main() {
       },
     });
 
-  const { aksCluster, clusterId } = await deployAksCluster({
-    clusterName: shortName,
-    resourceGroupName: resourceGroup.name,
-    location,
-    vnetId: vnet.id,
-    subnetId: privateSubnet.id,
-    apiServerSubnetId: apiServerSubnet.id,
-    serviceCidr: aksServiceCidr,
-    dnsServiceIP: aksDnsServiceIP,
-    adminGroupObjectIds,
-    commonTags,
-    nodeVmSize: aksNodeVmSize,
-  });
+  const { aksCluster, clusterId, aksIdentity, diskEncryptionSetReaderRole } =
+    await deployAksCluster({
+      clusterName: shortName,
+      resourceGroupName: resourceGroup.name,
+      location,
+      vnetId: vnet.id,
+      subnetId: privateSubnet.id,
+      apiServerSubnetId: apiServerSubnet.id,
+      serviceCidr: aksServiceCidr,
+      dnsServiceIP: aksDnsServiceIP,
+      adminGroupObjectIds,
+      commonTags,
+      nodeVmSize: aksNodeVmSize,
+      diskEncryptionSetId: diskEncryptionSet.id,
+    });
 
   // Note: Cluster admin access is granted via Engineering group (bd7d7362-4096-450a-86ab-48bb6c0a4bed)
   // which is configured as an adminGroupObjectID via az aks create command
@@ -151,7 +164,16 @@ async function main() {
   );
 
   await installGatewayApiCrds(k8sProvider);
-  // await createManagedCsiStorageClass(k8sProvider, [aksCluster]);
+
+  // Create Karpenter NodePool to constrain VM selection to D-series v5 (supports Premium_ZRS)
+  const karpenterNodePool = createKarpenterNodePool(k8sProvider, [aksCluster]);
+
+  // Create storage class with customer-managed encryption
+  await createManagedCsiStorageClass(k8sProvider, diskEncryptionSet.id, [
+    aksCluster,
+    diskEncryptionSet,
+    roleAssignment,
+  ]);
 
   // Tailscale disabled - AKS Automatic Gatekeeper policy requires health probes
   // To enable: configure livenessProbe and readinessProbe in Tailscale helm values
@@ -210,6 +232,8 @@ async function main() {
     isolatedSubnetId: isolatedSubnet.id,
     apiServerSubnetId: apiServerSubnet.id,
     nodeResourceGroup: `${shortName}-nodes`,
+    keyVaultId: keyVault.id,
+    diskEncryptionSetId: diskEncryptionSet.id,
   };
 }
 

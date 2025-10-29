@@ -5,22 +5,25 @@ import * as azure from "@pulumi/azure-native";
 // These are fixed GUIDs that are the same across all Azure subscriptions
 // Reference: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
 const AZURE_ROLE_NETWORK_CONTRIBUTOR = "4d97b98b-1d4f-4787-a291-c67834d212e7";
+const AZURE_ROLE_READER = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
 
 interface AksIdentityArgs {
   resourceGroupName: pulumi.Input<string>;
   location: pulumi.Input<string>;
   vnetId: pulumi.Input<string>;
+  diskEncryptionSetId?: pulumi.Input<string>;
   commonTags: { [k: string]: string };
 }
 
 /**
- * Creates a user-assigned managed identity for AKS with Network Contributor role
+ * Creates a user-assigned managed identity for AKS with necessary role assignments
  *
- * This is required when using custom VNets with AKS. The identity needs Network Contributor
- * permissions to manage network resources within the VNet.
+ * This is required when using custom VNets with AKS. The identity needs:
+ * - Network Contributor permissions to manage network resources within the VNet
+ * - Reader permissions on DiskEncryptionSet to create encrypted disks with customer-managed keys
  *
  * @param args - The arguments for creating the identity
- * @returns The managed identity and role assignment
+ * @returns The managed identity and role assignments
  */
 export function createAksIdentityWithRole(args: AksIdentityArgs) {
   // Create a user-assigned managed identity for AKS
@@ -44,5 +47,20 @@ export function createAksIdentityWithRole(args: AksIdentityArgs) {
     }
   );
 
-  return { aksIdentity, networkContributorRole };
+  // Grant the AKS identity Reader role on the DiskEncryptionSet (if provided)
+  // This allows AKS to create encrypted disks using customer-managed keys
+  const diskEncryptionSetReaderRole = args.diskEncryptionSetId
+    ? new azure.authorization.RoleAssignment(
+        "aks-des-reader",
+        {
+          principalId: aksIdentity.principalId,
+          principalType: "ServicePrincipal",
+          roleDefinitionId: pulumi.interpolate`/subscriptions/${azure.authorization.getClientConfigOutput().subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/${AZURE_ROLE_READER}`,
+          scope: args.diskEncryptionSetId,
+        },
+        { dependsOn: [aksIdentity] }
+      )
+    : undefined;
+
+  return { aksIdentity, networkContributorRole, diskEncryptionSetReaderRole };
 }
