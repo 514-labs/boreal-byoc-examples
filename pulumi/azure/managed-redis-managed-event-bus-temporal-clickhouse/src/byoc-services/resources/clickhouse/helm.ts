@@ -51,7 +51,7 @@ export async function installClickhouseViaHelm(args: HelmClickhouseArgs) {
           persistentVolume: {
             enabled: true,
             size: args.clickhouseStorageSize,
-            storageClass: "managed-csi",
+            storageClass: "boreal-managed-csi", // Premium_ZRS with customer-managed encryption
           },
           resources: {
             requests: { memory: args.memoryRequest, cpu: args.cpuRequest },
@@ -96,7 +96,7 @@ export async function installClickhouseViaHelm(args: HelmClickhouseArgs) {
           persistentVolume: {
             enabled: true,
             size: "10Gi",
-            storageClass: "managed-csi",
+            storageClass: "boreal-managed-csi", // Premium_ZRS with customer-managed encryption
           },
           resources: {
             requests: { memory: "512Mi", cpu: "250m" },

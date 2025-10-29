@@ -36,7 +36,7 @@ export async function installTemporal(args: TemporalArgs) {
         cassandra: {
           persistence: {
             enabled: true,
-            storageClass: "managed-csi",
+            storageClass: "boreal-managed-csi", // Premium_ZRS with customer-managed encryption
             size: args.cassandraStorageSize,
           },
           config: {
@@ -52,7 +52,7 @@ export async function installTemporal(args: TemporalArgs) {
           },
           volumeClaimTemplate: {
             accessModes: ["ReadWriteOnce"],
-            storageClassName: "managed-csi",
+            storageClassName: "boreal-managed-csi", // Premium_ZRS with customer-managed encryption
             resources: { requests: { storage: args.elasticsearchStorageSize } },
           },
         },
