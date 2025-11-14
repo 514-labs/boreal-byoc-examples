@@ -6,6 +6,12 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+Pulumi.yaml
+Pulumi.base.yaml
+Pulumi.byoc-services.yaml
+Pulumi.datadog.yaml
+Pulumi.mds.yaml
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
