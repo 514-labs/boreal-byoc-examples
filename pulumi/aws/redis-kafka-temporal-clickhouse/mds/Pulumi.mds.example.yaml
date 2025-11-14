@@ -1,0 +1,4 @@
+environment:
+  - YOUR_ESC_ENVIRONMENT_HERE
+config:
+  aws:profile: YOUR_AWS_PROFILE_HERE

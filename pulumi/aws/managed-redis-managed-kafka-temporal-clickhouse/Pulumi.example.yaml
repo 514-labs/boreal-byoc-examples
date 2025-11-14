@@ -5,19 +5,19 @@ description: Pulumi project for AWS managed services with Redis, Kafka, Temporal
 config:
   # This overrides the project-level aws:region if it was set
   aws:region: us-east-2
-  aws:profile: sandbox-admin
-  awsProfile: sandbox-admin
+  aws:profile: YOUR_AWS_PROFILE_HERE
+  awsProfile: YOUR_AWS_PROFILE_HERE
 
   # Common tags to be applied across all stacks
   tagCloud: aws
   tagEnvironment: byoc-testing
 
   # Boreal Org ID
-  orgId: org_31WRrwB8xQhMl5RcaWBWoU38jI4
+  orgId: YOUR_ORG_ID_HERE
 
   # VPC Configuration
   vpcCidrBlock: 10.192.0.0/16
 
-  datadogClusterName: boreal-org_31WRrwB8xQhMl5RcaWBWoU38jI4
+  datadogClusterName: boreal-YOUR_ORG_ID_HERE
 
   # Project tag will be dynamically added using pulumi.getProject()
