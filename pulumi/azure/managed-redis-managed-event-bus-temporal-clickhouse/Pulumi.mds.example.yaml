@@ -1,0 +1,13 @@
+environment:
+  - default/byoc-YOUR_ORG_ID_HERE
+
+config:
+  tagCloud: azure
+  tagEnvironment: byoc-testing
+
+  # MDS Configuration
+  mdsChartVersion: 0.7.6
+  mdsEnvironment: byoc-YOUR_ORG_ID_HERE
+  mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_HERE::azure::centralus

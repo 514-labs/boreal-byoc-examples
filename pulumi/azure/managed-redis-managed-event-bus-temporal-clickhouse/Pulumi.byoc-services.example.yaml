@@ -1,0 +1,59 @@
+config:
+  azure-native:location: centralus
+  # Redis Configuration - See REDIS_CONFIGURATION.md for detailed options
+  #
+  # Choose between two services:
+  # - "cache" = Azure Cache for Redis (DEFAULT - Cost-effective for POC/Dev, ~$65/mo)
+  # - "managed" = Azure Managed Redis (Enterprise-grade, 15x faster, ~$560+/mo)
+  #
+  redisServiceType: cache # Options: "cache" or "managed"
+
+  # Redis SKU settings (used by both cache and managed)
+  redisSkuName: Standard # Cache: Basic, Standard, Premium | Managed: Balanced, MemoryOptimized, ComputeOptimized, FlashOptimized
+  redisSkuFamily: C # Cache only: C = Basic/Standard, P = Premium (ignored for managed)
+  redisSkuCapacity: "1" # Cache: C:0-6, P:1-5 (number as string) | Managed: "B5", "B10", "M10", "X3", "A250", etc. (SKU name as string)
+
+  # Cache-specific settings (when redisServiceType: cache)
+  redisEnableNonSsl: "false"
+
+  # Managed-specific settings (when redisServiceType: managed)
+  redisEnableModules: "" # Optional: Comma-separated (e.g., "RediSearch,RedisJSON,RedisBloom,RedisTimeSeries")
+
+  # Common Redis settings (both services)
+  redisEvictionPolicy: allkeys-lru # Options: allkeys-lru, allkeys-lfu, volatile-lru, volatile-lfu, noeviction
+
+  # Event Hub Configuration
+  eventHubSkuName: Standard # Options: Basic, Standard, Premium
+  eventHubSkuTier: Standard # Options: Basic, Standard, Premium (should match skuName)
+  eventHubSkuCapacity: "2" # Basic/Standard: 1-20 throughput units, Premium: 1-10 processing units
+  eventHubMaxThroughputUnits: "10" # Max auto-inflate throughput units (Standard/Premium only)
+  eventHubPartitions: "8" # Number of partitions (1-32, more partitions = better parallelism)
+  eventHubMessageRetention: "7" # Message retention in days (1-7 for Basic/Standard, 1-90 for Premium)
+
+  # Temporal Configuration
+  temporalReplicas: "3"
+  temporalCassandraReplicas: "3"
+  temporalElasticsearchReplicas: "3"
+  temporalNamespaceRetention: "7"
+  temporalCassandraStorageSize: 50Gi
+  temporalElasticsearchStorageSize: 100Gi
+
+  # ClickHouse Configuration
+  clickhouseShards: "2"
+  clickhouseReplicas: "2"
+  clickhouseStorageSize: 200Gi
+
+  # ClickHouse Pod Resource Requests/Limits
+  clickhouseRequestedCpu: 2000m # CPU request per pod
+  clickhouseRequestedMemory: 4Gi # Memory request per pod
+  clickhouseLimitCpu: 2000m # CPU limit per pod
+  clickhouseLimitMemory: 4Gi # Memory limit per pod
+
+  # ClickHouse Managed Namespace Limits (should be HIGHER than pod limits)
+  # Total needed: 3 keepers (250m+512Mi each) + 4 shards (2CPU+4Gi each) = 8.75CPU + 17.5Gi requests
+  # Set with headroom for scaling
+  clickhouseNamespaceCpuRequest: 12000m # Namespace-wide CPU request quota (allows ~6 shard pods)
+  clickhouseNamespaceCpuLimit: 16000m # Namespace-wide CPU limit quota
+  clickhouseNamespaceMemoryRequest: 24Gi # Namespace-wide memory request quota (allows ~6 shard pods)
+  clickhouseNamespaceMemoryLimit: 32Gi # Namespace-wide memory limit quota
+

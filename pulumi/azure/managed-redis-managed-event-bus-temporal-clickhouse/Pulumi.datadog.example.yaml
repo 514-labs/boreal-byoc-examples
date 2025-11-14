@@ -1,0 +1,12 @@
+environment:
+  - default/byoc-YOUR_ORG_ID_HERE
+
+config:
+  tagCloud: azure
+  tagEnvironment: byoc-testing
+
+  # Datadog configuration
+  datadogClusterName: boreal-YOUR_ORG_ID_HERE
+  # datadogApiKey and datadogAppKey should be set as secrets:
+  # pulumi config set --secret datadogApiKey <your-api-key> --stack datadog
+  # pulumi config set --secret datadogAppKey <your-app-key> --stack datadog
