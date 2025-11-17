@@ -1,0 +1,19 @@
+name: BYOC-Example_Azure-Managed-Redis-EventHub-Self-Hosted-Temporal-Clickhouse
+runtime: nodejs
+description: Pulumi project for Azure managed services with Redis, Event Hubs, Temporal, and ClickHouse
+
+environment:
+  - default/byoc-YOUR_ORG_ID_HERE
+
+config:
+  # Azure setup
+  azure-native:location: centralus
+
+  # Common tags to be applied across all stacks
+  tagCloud: azure
+  tagEnvironment: boreal-byoc
+
+  # Boreal Org ID
+  orgId: YOUR_ORG_ID_HERE
+
+  # Project tag will be dynamically added using pulumi.getProject()

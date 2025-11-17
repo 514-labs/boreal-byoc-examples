@@ -1,5 +1,5 @@
 environment:
-  - byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  - byoc-YOUR_ORG_ID_HERE
 config:
   # Redis (ElastiCache) Configuration
   redisNodeType: cache.t3.micro

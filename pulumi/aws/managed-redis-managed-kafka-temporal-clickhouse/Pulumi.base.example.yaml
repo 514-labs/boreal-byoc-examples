@@ -1,5 +1,5 @@
 environment:
-- default/byoc-org_30cI9M4reuGKbT6mDiYKHikTiR5
+  - default/byoc-YOUR_ORG_ID_HERE
 config:
   # EKS Configuration
   eksClusterName: boreal-byoc-eks-cluster

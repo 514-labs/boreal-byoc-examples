@@ -6,7 +6,6 @@
   },
   "dependencies": {
     "@pulumi/docker": "catalog:",
-    "@pulumi/gcp": "catalog:",
     "@pulumi/kubernetes": "catalog:",
     "@pulumi/pulumi": "catalog:",
     "@pulumi/random": "catalog:",

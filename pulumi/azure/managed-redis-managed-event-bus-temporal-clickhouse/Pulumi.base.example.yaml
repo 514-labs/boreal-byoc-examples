@@ -1,0 +1,29 @@
+#### this must be defined in each stack
+environment:
+  - default/byoc-YOUR_ORG_ID_HERE
+
+config:
+  name: boreal-byoc
+  aksClusterImported: true
+  aksNodeVmSize: Standard_D4ds_v5 # v5 series supports Premium_ZRS for zone redundancy
+  aksVnetCidrBlock: 10.193.0.0/16
+  # Set to true to make the API server private (only accessible from VNet)
+  # When enabled, you'll need a jump box or VPN to access the cluster
+  enablePrivateCluster: false
+  apiServerSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-api-server-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+  isolatedSubnetNsgRules: '[{"access":"Deny","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"deny-internet-outbound","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"},{"access":"Allow","destinationAddressPrefix":"VirtualNetwork","destinationPortRange":"*","direction":"Outbound","name":"allow-vnet-outbound","priority":110,"protocol":"*","sourceAddressPrefix":"VirtualNetwork","sourcePortRange":"*"}]'
+  jumpboxAdminUsername: ubuntu
+  jumpboxEnabled: "false"
+  jumpboxInstanceType: Standard_DS2_v2
+  jumpboxName: boreal-jump-box
+  jumpboxSshPublicKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... # Replace with your SSH public key
+  privateSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-aks-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+  publicSubnetNsgRules: '[{"access":"Allow","destinationAddressPrefix":"Internet","destinationPortRange":"*","direction":"Outbound","name":"allow-egress","priority":100,"protocol":"*","sourceAddressPrefix":"*","sourcePortRange":"*"}]'
+
+  # Tailscale Configuration
+  # tailscaleClientId: ""  # pulled from the ESC environment
+  # tailscaleClientSecret: ""  # pulled from the ESC environment
+
+  # Note: To add individual users, add them to an Azure AD group and include the group ID below,
+  # or grant access via Kubernetes RBAC after cluster creation
+  aksAdminGroupObjectIds: '["YOUR_AZURE_AD_GROUP_ID_HERE"]'

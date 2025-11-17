@@ -1,0 +1,8 @@
+environment:
+  - byoc-YOUR_ORG_ID_HERE
+config:
+  mdsChartVersion: 0.7.6
+  mdsEnvironment: byoc-YOUR_ORG_ID_HERE
+  mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_HERE::aws::us-east-2
