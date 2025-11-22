@@ -2,6 +2,7 @@ import * as path from "path";
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as random from "@pulumi/random";
+import { createMdsConfigSecret } from "./mds-secret";
 
 export interface HelmClickhouseArgs {
   namespace: string;
@@ -93,20 +94,9 @@ export async function installClickhouseViaHelm(args: HelmClickhouseArgs) {
     { ...args.releaseOpts }
   );
 
-  const mdsConfigSecret = new k8s.core.v1.Secret(
-    "sn-mds-clickhouse-config",
-    {
-      metadata: { name: "sn-mds-clickhouse-config", namespace: "boreal-system" },
-      stringData: {
-        username: "default",
-        password: password.result,
-        database: "default",
-        host: "clickhouse.byoc-clickhouse.svc.cluster.local",
-        port: "9000",
-      },
-    },
-    { ...args.releaseOpts }
-  );
+  const mdsConfigSecret = createMdsConfigSecret(password.result, "boreal-system", {
+    ...args.releaseOpts,
+  });
 
   return { helmRelease, password: password.result, mdsConfigSecret };
 }

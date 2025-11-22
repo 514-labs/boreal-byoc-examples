@@ -7,6 +7,7 @@ import { createJumpBox } from "./resources/jump-box";
 import { installTailscaleOperator } from "./resources/tailscale";
 import { createGp3StorageClass } from "./resources/storage-class-gp3";
 import { getKubeconfig } from "./utils/kubeconfig";
+import { installGatewayApiCrds } from "./resources/gateway-crds";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -102,6 +103,7 @@ async function main() {
     }
   );
 
+  await installGatewayApiCrds(releaseOpts);
   await installTailscaleOperator(
     tailscaleClientId,
     tailscaleClientSecret,
