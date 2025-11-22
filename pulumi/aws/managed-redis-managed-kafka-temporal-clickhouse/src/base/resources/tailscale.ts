@@ -12,9 +12,9 @@ export async function installTailscaleOperator(
   tailscaleClientId: pulumi.Output<string>,
   tailscaleClientSecret: pulumi.Output<string>,
   k8sOperatorDefaultTags: string,
+  operatorHostname: string,
   releaseOpts: pulumi.CustomResourceOptions
 ) {
-  const operatorHostName = "aws-sandbox-tailscale-operator-us-east-2";
   const tailscale = new k8s.helm.v3.Release(
     "tailscale",
     {
@@ -31,7 +31,7 @@ export async function installTailscaleOperator(
           clientSecret: tailscaleClientSecret,
         },
         operatorConfig: {
-          hostname: operatorHostName,
+          hostname: operatorHostname,
           defaultTags: k8sOperatorDefaultTags,
         },
         apiServerProxyConfig: {
