@@ -42,6 +42,7 @@ async function main() {
   const tailscaleClientId = config.requireSecret("tailscaleClientId"); // From ESC environment
   const tailscaleClientSecret = config.requireSecret("tailscaleClientSecret"); // From ESC environment
   const tailscaleK8sOperatorDefaultTags = config.require("tailscaleK8sOperatorDefaultTags"); // From ESC environment
+  const tailscaleOperatorHostname = config.require("tailscaleOperatorHostname");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -105,6 +106,7 @@ async function main() {
     tailscaleClientId,
     tailscaleClientSecret,
     tailscaleK8sOperatorDefaultTags,
+    tailscaleOperatorHostname,
     releaseOpts
   );
 

@@ -1,151 +1,112 @@
+import * as path from "path";
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { ClickhouseArgs } from "./types";
+import * as random from "@pulumi/random";
 
-interface HelmReleaseArgs {
-  args: ClickhouseArgs;
-  password: pulumi.Output<string>;
+export interface HelmClickhouseArgs {
   namespace: string;
-  s3ConfigMapName?: pulumi.Output<string>;
-  serviceAccountName?: pulumi.Output<string>;
-  dependencies?: pulumi.Resource[];
+  clickhouseShards: number;
+  clickhouseReplicas: number;
+  clickhouseStorageSize: string;
+  cpuRequest: string;
+  cpuLimit: string;
+  memoryRequest: string;
+  memoryLimit: string;
+  releaseOpts: pulumi.CustomResourceOptions;
 }
 
-/**
- * Creates the ClickHouse Helm release
- *
- * @param helmArgs - Configuration for the Helm release
- * @returns ClickHouse Helm release
- */
-export function createHelmRelease(helmArgs: HelmReleaseArgs): k8s.helm.v3.Release {
-  const {
-    args,
-    password,
-    namespace,
-    s3ConfigMapName,
-    serviceAccountName,
-    dependencies = [],
-  } = helmArgs;
+export async function installClickhouseViaHelm(args: HelmClickhouseArgs) {
+  const password = new random.RandomPassword("clickhouse-password", {
+    length: 16,
+    special: false,
+  });
 
-  return new k8s.helm.v3.Release(
+  // Path to the local helm chart (8 levels up from this file to repo root)
+  const chartPath = path.join(__dirname, "../../../../../../../external/helm/clickhouse");
+
+  const helmRelease = new k8s.helm.v3.Release(
     "clickhouse",
     {
-      repositoryOpts: {
-        repo: "https://charts.bitnami.com/bitnami",
-      },
-      chart: "clickhouse",
-      version: "9.4.0",
-      namespace: namespace,
+      chart: chartPath,
+      namespace: args.namespace,
       createNamespace: true,
       values: {
         fullnameOverride: "clickhouse",
-        auth: {
-          username: "default",
-          password: password,
+        clickhouse: {
+          shards: args.clickhouseShards,
+          replicasPerShard: args.clickhouseReplicas,
+          clusterName: "default",
+          auth: {
+            enabled: true,
+            createSecret: true,
+            username: "default",
+            password: password.result,
+          },
+          persistentVolume: {
+            enabled: true,
+            size: args.clickhouseStorageSize,
+            storageClass: "gp3", // AWS EBS gp3 storage class
+          },
+          resources: {
+            requests: { memory: args.memoryRequest, cpu: args.cpuRequest },
+            limits: { memory: args.memoryLimit, cpu: args.cpuLimit },
+          },
+          logLevel: "information",
+          metrics: {
+            enabled: true,
+          },
         },
-        shards: args.clickhouseShards,
-        replicaCount: args.clickhouseReplicas,
-
-        // Reference the S3 configuration if provided
-        ...(s3ConfigMapName && {
-          existingConfigdConfigmap: s3ConfigMapName,
-        }),
-
-        // Service configuration
-        service: {
-          type: "ClusterIP",
-          ports: {
+        keeper: {
+          enabled: true,
+          replicas: 3,
+          persistentVolume: {
+            enabled: true,
+            size: "10Gi",
+            storageClass: "gp3", // AWS EBS gp3 storage class
+          },
+          resources: {
+            requests: { memory: "512Mi", cpu: "250m" },
+            limits: { memory: "1Gi", cpu: "500m" },
+          },
+          logLevel: "information",
+          metrics: {
+            enabled: true,
+          },
+        },
+        ports: {
+          clickhouse: {
             http: 8123,
             tcp: 9000,
             mysql: 9004,
+            interserver: 9009,
+            metrics: 9363,
           },
-        },
-
-        // Persistence configuration
-        persistence: {
-          // Enable persistence when using S3 for metadata and hot data
-          enabled: args.s3Config ? true : false,
-          size: args.clickhouseStorageSize,
-          storageClass: args.s3Config ? "gp3" : undefined, // Use gp3 for better performance with S3
-        },
-
-        keeper: {
-          enabled: true,
-          persistence: {
-            // Enable keeper persistence when using S3
-            enabled: args.s3Config ? true : false,
-            size: "10Gi",
-            storageClass: args.s3Config ? "gp3" : undefined,
-          },
-        },
-
-        // Extra volumes for S3 cache when S3 is enabled
-        ...(args.s3Config && {
-          extraVolumes: [
-            {
-              name: "s3-cache",
-              emptyDir: {
-                sizeLimit: "20Gi",
-              },
-            },
-            {
-              name: "s3-metadata",
-              emptyDir: {
-                sizeLimit: "5Gi",
-              },
-            },
-          ],
-          extraVolumeMounts: [
-            {
-              name: "s3-cache",
-              mountPath: "/bitnami/clickhouse/disks/s3_cache",
-            },
-            {
-              name: "s3-cache",
-              mountPath: "/bitnami/clickhouse/disks/s3_cache_replica",
-            },
-            {
-              name: "s3-metadata",
-              mountPath: "/bitnami/clickhouse/disks/s3_disk",
-            },
-          ],
-        }),
-
-        // Service account configuration
-        ...(serviceAccountName && {
-          serviceAccount: {
-            create: false,
-            name: serviceAccountName,
-          },
-        }),
-
-        // Resource limits
-        resources: {
-          requests: {
-            memory: args.requestedMemory,
-            cpu: args.requestedCpu,
-          },
-          limits: {
-            memory: args.requestedMemory,
-            cpu: args.requestedCpu,
-          },
-        },
-
-        // Additional ClickHouse configuration
-        logLevel: "information",
-
-        // Metrics configuration
-        metrics: {
-          enabled: true,
-          serviceMonitor: {
-            enabled: false, // Enable if using Prometheus Operator
+          keeper: {
+            client: 9181,
+            raft: 9234,
+            httpControl: 9182,
+            metrics: 9363,
           },
         },
       },
     },
-    {
-      ...args.releaseOpts,
-      dependsOn: [...dependencies],
-    }
+    { ...args.releaseOpts }
   );
+
+  const mdsConfigSecret = new k8s.core.v1.Secret(
+    "sn-mds-clickhouse-config",
+    {
+      metadata: { name: "sn-mds-clickhouse-config", namespace: "boreal-system" },
+      stringData: {
+        username: "default",
+        password: password.result,
+        database: "default",
+        host: "clickhouse.byoc-clickhouse.svc.cluster.local",
+        port: "9000",
+      },
+    },
+    { ...args.releaseOpts }
+  );
+
+  return { helmRelease, password: password.result, mdsConfigSecret };
 }
