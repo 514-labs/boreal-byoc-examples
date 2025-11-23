@@ -139,27 +139,41 @@ This repository uses org-based configuration to keep customer-specific configs o
 
 #### Setting Up a New Org
 
-1. **Create your org config directory:**
+Use the automated script to create new org configs:
 
-   ```bash
-   mkdir -p config/your-org-name
-   ```
+```bash
+# Create new org configs
+npm run create-config "Your Org Name" org_2qMFnk4YOm
 
-2. **Copy example configs:**
+# Or run directly
+node create-config.js "Your Org Name" org_2qMFnk4YOm
+```
 
-   ```bash
-   cp -r config/_example/* config/your-org-name/
-   ```
+**Arguments:**
 
-3. **Update `config/your-org-name/Pulumi.yaml`:**
-   - Set the project `name` to your org-specific name (e.g., `boreal-cust-byoc-{your-org-id}`)
-   - Update `orgId` and other org-specific values
+- **Org Name**: The organization name (spaces will be converted to hyphens and lowercased)
+- **Org ID**: The Boreal organization ID (mixed case format)
 
-4. **Update stack configs in `config/your-org-name/`:**
-   - `Pulumi.base.yaml` - Base infrastructure config
-   - `Pulumi.byoc-services.yaml` - BYOC services config
-   - `Pulumi.datadog.yaml` - Datadog config
-   - `Pulumi.mds.yaml` - MDS config
+The script will:
+
+- Create a new directory in `config/` based on the processed org name
+- Copy all example config files from `config/_example/`
+- Replace placeholders with your org-specific values
+
+**After creating configs:**
+
+1. Review the generated files in `config/{your-org-name}/`
+2. Update `YOUR_AWS_PROFILE_HERE` in `Pulumi.yaml` with your AWS profile name
+3. Update `YOUR_IMAGE_TAG_HERE` in `Pulumi.mds.yaml` with the appropriate MDS image tag
+
+**Manual Setup (Alternative)**
+
+If you prefer to set up configs manually:
+
+1. Create your org config directory: `mkdir -p config/your-org-name`
+2. Copy example configs: `cp -r config/_example/* config/your-org-name/`
+3. Update `config/your-org-name/Pulumi.yaml` with your org-specific values
+4. Update stack configs in `config/your-org-name/` as needed
 
 #### Using Org Configs
 
