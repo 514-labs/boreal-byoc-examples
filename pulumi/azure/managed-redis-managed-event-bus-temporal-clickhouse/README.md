@@ -1,61 +1,17 @@
-# BYOC AWS Managed Services Deployment
+# BYOC Azure Managed Services Deployment
 
-Deploy AWS infrastructure with managed Redis (ElastiCache), managed Kafka (MSK), and self-hosted Temporal/ClickHouse on EKS.
+Deploy Azure infrastructure with managed Redis, managed Event Hubs, and self-hosted Temporal/ClickHouse on AKS.
 
 ## Prerequisites
 
-### Quick Install
+### 1. Configure Azure CLI
 
 ```bash
-./install-prerequisites.sh
+az login
+az account set --subscription <your-subscription-id>
 ```
 
-This installs: AWS CLI, Pulumi, Node.js, pnpm, and kubectl.
-
-### Manual Setup
-
-#### 1. Configure AWS Profile
-
-**Option A: AWS SSO (Recommended for organizations)**
-
-```bash
-aws configure sso
-```
-
-You'll need: SSO start URL, SSO Region, Account ID, and Role
-
-**Option B: AWS CLI Configuration**
-
-```bash
-aws configure --profile sandbox-admin
-```
-
-**Option C: Manual Credentials File**
-
-```bash
-# Create AWS credentials directory
-mkdir -p ~/.aws
-
-# Create credentials file
-cat > ~/.aws/credentials <<EOF
-[sandbox-admin]
-aws_access_key_id = YOUR_ACCESS_KEY_ID
-aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
-EOF
-
-# Create config file
-cat > ~/.aws/config <<EOF
-[profile sandbox-admin]
-region = us-east-2
-output = json
-EOF
-
-# Set file permissions
-chmod 600 ~/.aws/credentials
-chmod 600 ~/.aws/config
-```
-
-#### 2. Login to Pulumi
+### 2. Login to Pulumi
 
 ```bash
 # With access token (recommended for teams)
@@ -74,14 +30,14 @@ pnpm install
 
 ### 2. Set Up Org Configuration
 
-Before deploying, set up your org configuration (see Configuration section above).
+Before deploying, set up your org configuration (see Configuration section below).
 
 ### 3. Deploy Infrastructure
 
 Deploy all stacks using the launcher:
 
 ```bash
-cd pulumi/aws/managed-redis-managed-kafka-temporal-clickhouse
+cd pulumi/azure/managed-redis-managed-event-bus-temporal-clickhouse
 
 # Deploy all stacks (uses 'mrm' org by default)
 npm run deploy
@@ -101,35 +57,6 @@ The launcher will:
 4. Clean up `Pulumi.yaml` after deployment
 
 > **Note**: Stacks are automatically created if they don't exist. The launcher handles stack initialization.
-
-## Stack Management
-
-### Alternative Stack Initialization
-
-If you prefer to create stacks with different names or use an existing backend:
-
-```bash
-# Create stack with custom name
-pulumi stack init mycompany-base
-
-# Or select an existing stack
-pulumi stack select mycompany-base
-
-# List available stacks
-pulumi stack ls
-```
-
-### Skip Stack Selection Prompts
-
-To avoid the interactive stack selection, you can specify the stack directly:
-
-```bash
-# Create and select stack in one command
-pulumi stack init base && pulumi up
-
-# Or run with specific stack
-pulumi up --stack base
-```
 
 ## Configuration
 
@@ -154,9 +81,10 @@ This repository uses org-based configuration to keep customer-specific configs o
 3. **Update `config/your-org-name/Pulumi.yaml`:**
    - Set the project `name` to your org-specific name (e.g., `boreal-cust-byoc-{your-org-id}`)
    - Update `orgId` and other org-specific values
+   - Update `environment` ESC reference if needed
 
 4. **Update stack configs in `config/your-org-name/`:**
-   - `Pulumi.base.yaml` - Base infrastructure config
+   - `Pulumi.base.yaml` - Base infrastructure config (AKS, VNet)
    - `Pulumi.byoc-services.yaml` - BYOC services config
    - `Pulumi.datadog.yaml` - Datadog config
    - `Pulumi.mds.yaml` - MDS config
@@ -182,11 +110,10 @@ All configuration files are in `config/{org}/`:
 
 - **Pulumi.yaml**: Project-level config with org-specific project name
 - **Pulumi.{stack}.yaml**: Stack-specific configs
-- **AWS**: Profile and region
-- **VPC**: CIDR block (default: 10.192.0.0/16)
-- **EKS**: Cluster name and endpoints
+- **Azure**: Location and subscription settings
+- **AKS**: Cluster configuration, node sizes, networking
+- **VNet**: CIDR blocks and subnet configuration
 - **Jump Box**: Enable/disable and instance type
-- **Tailscale**: Auth key from ESC environment
 
 > **Note**: The `config/` directory is excluded from git. Never commit actual customer configs to the repository.
 
@@ -194,7 +121,7 @@ All configuration files are in `config/{org}/`:
 
 ```bash
 # Update kubeconfig
-aws eks update-kubeconfig --name boreal-byoc-eks-cluster --region us-east-2
+az aks get-credentials --resource-group <resource-group> --name <aks-cluster-name>
 
 # Check resources
 kubectl get nodes
@@ -203,15 +130,16 @@ kubectl get pods -A
 
 ## Troubleshooting
 
-### AWS SSO Login Issues
+### Azure Authentication Issues
 
 ```bash
-aws sso login --profile sandbox-admin
+az account show
+az account list
 ```
 
 ### Pulumi Errors
 
-- Check AWS credentials: `aws sts get-caller-identity`
+- Check Azure credentials: `az account show`
 - Verify Pulumi login: `pulumi whoami`
 - View detailed logs: `pulumi logs`
 

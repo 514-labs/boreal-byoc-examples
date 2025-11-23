@@ -4,9 +4,9 @@
   "description": "Pulumi project for AWS managed services with Redis, Kafka, Temporal, and ClickHouse",
   "main": "src/index.ts",
   "scripts": {
-    "deploy": "npx tsx launcher.ts up",
-    "deploy:all": "npx tsx launcher.ts up",
-    "destroy:all": "npx tsx launcher.ts destroy",
+    "deploy": "npx tsx launcher.ts up --org ${ORG}",
+    "deploy:all": "npx tsx launcher.ts up --org ${ORG}",
+    "destroy:all": "npx tsx launcher.ts destroy --org ${ORG}",
     "destroy:base": "pulumi destroy --stack 514labs/base",
     "destroy:byoc": "pulumi destroy --stack 514labs/byoc-services",
     "destroy:datadog": "pulumi destroy --stack 514labs/datadog",
@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "chalk": "catalog:",
+    "commander": "^12.1.0",
     "ts-node": "catalog:",
     "typescript": "catalog:"
   }

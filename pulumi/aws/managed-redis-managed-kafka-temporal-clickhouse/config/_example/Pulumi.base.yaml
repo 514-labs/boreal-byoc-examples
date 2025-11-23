@@ -1,5 +1,7 @@
 environment:
-  - default/byoc-YOUR_ORG_ID_HERE
+  # Note: Casing doesn't matter for environment values - using mixed case for consistency
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
 config:
   # EKS Configuration
   eksClusterName: boreal-byoc-eks-cluster
@@ -13,5 +15,6 @@ config:
   # tailscaleAuthKey is pulled from the ESC environment
 
   # Tailscale Configuration
+  tailscaleOperatorHostname: aws-YOUR_ORG_NAME_HERE-tailscale-operator-us-east-2
   # tailscaleClientId: ""  # pulled from the ESC environment
   # tailscaleClientSecret: ""  # pulled from the ESC environment
