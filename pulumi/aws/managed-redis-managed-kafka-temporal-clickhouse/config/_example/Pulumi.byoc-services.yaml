@@ -22,10 +22,18 @@ config:
   temporalCassandraReplicas: 1
   temporalElasticsearchReplicas: 1
   temporalNamespaceRetention: 30d
+  # Temporal Resource Allocation (optional, defaults shown)
+  temporalCassandraMemory: 2Gi
+  temporalCassandraCpu: 1000m
+  temporalServerMemory: 512Mi
+  temporalServerCpu: 500m
 
   # ClickHouse Configuration
-  clickhouseShards: 1
-  clickhouseReplicas: 1
+  # For HA: Use 2-3 replicas (requires ClickHouse Keeper for coordination)
+  # Single node: shards=1, replicas=1 (no Keeper needed)
+  # HA setup: shards=1, replicas=2-3 (Keeper auto-deployed with 3 nodes)
+  clickhouseShards: 2
+  clickhouseReplicas: 3 # 3 replicas for HA (Keeper will be auto-deployed)
   clickhouseRequestedCpu: 1
   clickhouseStorageSize: 100Gi
   clickhouseRequestedMemory: 1Gi
