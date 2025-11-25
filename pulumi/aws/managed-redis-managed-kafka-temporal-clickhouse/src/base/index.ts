@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import * as aws from "@pulumi/aws";
 import { createEksCluster } from "./resources/eks";
 import { createVpc } from "./resources/base-vpc/vpc";
 import { createJumpBox } from "./resources/jump-box";
@@ -44,6 +43,8 @@ async function main() {
   const tailscaleClientSecret = config.requireSecret("tailscaleClientSecret"); // From ESC environment
   const tailscaleK8sOperatorDefaultTags = config.require("tailscaleK8sOperatorDefaultTags"); // From ESC environment
   const tailscaleOperatorHostname = config.require("tailscaleOperatorHostname");
+  const createTailscaleSubnetRouter = config.getBoolean("createTailscaleSubnetRouter") ?? false;
+  const tailscaleSubnetRouterName = config.require("tailscaleSubnetRouterName");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -109,6 +110,9 @@ async function main() {
     tailscaleClientSecret,
     tailscaleK8sOperatorDefaultTags,
     tailscaleOperatorHostname,
+    tailscaleSubnetRouterName,
+    vpcCidrBlock,
+    createTailscaleSubnetRouter,
     releaseOpts
   );
 

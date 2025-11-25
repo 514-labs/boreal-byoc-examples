@@ -3,7 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as command from "@pulumi/command";
 
 /**
- * Installs the Tailscale Operator
+ * Installs the Tailscale Operator and optionally configures a subnet router
  *
  * @param releaseOpts - The release options
  * @returns The Tailscale Operator resource
@@ -13,6 +13,9 @@ export async function installTailscaleOperator(
   tailscaleClientSecret: pulumi.Output<string>,
   k8sOperatorDefaultTags: string,
   operatorHostname: string,
+  subnetRouterName: string,
+  vpcCidr: string,
+  createSubnetRouter: boolean,
   releaseOpts: pulumi.CustomResourceOptions
 ) {
   const tailscale = new k8s.helm.v3.Release(
@@ -77,25 +80,32 @@ export async function installTailscaleOperator(
     releaseOpts
   );
 
-  // // 2. Generate a temporary file path for the kubeconfig
-  // const tempKubeconfigPath = `/tmp/tailscale-kubeconfig-${Date.now()}`;
+  // Optionally create a Connector resource for subnet routing
+  // This will advertise the VPC CIDR to the Tailscale network
+  let subnetRouter;
+  if (createSubnetRouter) {
+    subnetRouter = new k8s.apiextensions.CustomResource(
+      "tailscale-subnet-router",
+      {
+        apiVersion: "tailscale.com/v1alpha1",
+        kind: "Connector",
+        metadata: {
+          name: subnetRouterName,
+          namespace: "tailscale",
+        },
+        spec: {
+          subnetRouter: {
+            advertiseRoutes: [vpcCidr],
+          },
+          tags: k8sOperatorDefaultTags.split(",").map((tag) => tag.trim()),
+        },
+      },
+      {
+        ...releaseOpts,
+        dependsOn: [tailscale],
+      }
+    );
+  }
 
-  // // 3. Run the CLI to generate a kubeconfig and save it to the temp file using KUBECONFIG env var
-  // const kubeconfigCmd = new command.local.Command("genKubeconfig", {
-  //   create: pulumi.interpolate`KUBECONFIG=${tempKubeconfigPath} tailscale configure kubeconfig ${operatorHostName}`,
-  // }, {
-  //   dependsOn: [tailscale]
-  // });
-
-  // // 4. Read the kubeconfig from the temp file
-  // const readKubeconfigCmd = new command.local.Command("readKubeconfig", {
-  //   create: pulumi.interpolate`cat ${tempKubeconfigPath}`,
-  //   delete: pulumi.interpolate`rm -f ${tempKubeconfigPath}`,
-  // }, {
-  //   dependsOn: [kubeconfigCmd]
-  // });
-
-  // const kubeconfig = readKubeconfigCmd.stdout;
-
-  // return kubeconfig;
+  return { tailscale, subnetRouter };
 }
