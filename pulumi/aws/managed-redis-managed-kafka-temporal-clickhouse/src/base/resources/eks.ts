@@ -43,6 +43,8 @@ export async function createEksCluster(args: EksClusterArgs) {
       enabled: true,
     },
 
+    enabledClusterLogTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"],
+
     // Create OIDC provider for IRSA (IAM Roles for Service Accounts)
     createOidcProvider: true,
 

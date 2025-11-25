@@ -8,6 +8,11 @@ export interface TemporalArgs {
   elasticsearchReplicas: number;
   cassandraStorageSize: string;
   elasticsearchStorageSize: string;
+  // Resource specifications
+  cassandraMemory?: string;
+  cassandraCpu?: string;
+  serverMemory?: string;
+  serverCpu?: string;
   releaseOpts: pulumi.CustomResourceOptions;
 }
 
@@ -43,6 +48,17 @@ export async function installTemporal(args: TemporalArgs) {
               ],
             },
           },
+          // Set resource requests and limits for all Temporal server components
+          resources: {
+            requests: {
+              cpu: args.serverCpu || "500m",
+              memory: args.serverMemory || "512Mi",
+            },
+            limits: {
+              cpu: args.serverCpu || "500m",
+              memory: args.serverMemory || "512Mi",
+            },
+          },
         },
         cassandra: {
           persistence: {
@@ -52,6 +68,17 @@ export async function installTemporal(args: TemporalArgs) {
           },
           config: {
             cluster_size: args.cassandraReplicas,
+          },
+          // Set resource requests and limits for Cassandra
+          resources: {
+            requests: {
+              cpu: args.cassandraCpu || "1000m",
+              memory: args.cassandraMemory || "2Gi",
+            },
+            limits: {
+              cpu: args.cassandraCpu || "1000m",
+              memory: args.cassandraMemory || "2Gi",
+            },
           },
         },
         elasticsearch: {
@@ -99,7 +126,7 @@ export async function installTemporal(args: TemporalArgs) {
         "api-key": "", // Not needed for self-hosted Temporal
         "namespace-region": "default", // Default region for self-hosted Temporal
         "namespace-retention-days": args.namespaceRetention.toString(), // Default retention period in days
-        "host": "temporal-frontend.byoc-temporal.svc.cluster.local" // the port is added by the application
+        host: "temporal-frontend.byoc-temporal.svc.cluster.local", // the port is added by the application
       },
     },
     {

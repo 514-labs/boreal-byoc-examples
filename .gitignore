@@ -12,6 +12,12 @@ Pulumi.byoc-services.yaml
 Pulumi.datadog.yaml
 Pulumi.mds.yaml
 
+# Org-specific config directories (not committed to public repo)
+# But allow example configs to be committed
+**/config/**
+!**/config/_example/
+!**/config/_example/**
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 

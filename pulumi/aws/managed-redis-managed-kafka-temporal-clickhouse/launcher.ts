@@ -1,168 +1,196 @@
-import { LocalWorkspace, fullyQualifiedStackName } from "@pulumi/pulumi/automation";
 import * as path from "path";
+import * as fs from "fs";
+import { spawn } from "child_process";
+import { Command } from "commander";
 
-async function deployAllStacks() {
-  console.log("🚀 Starting deployment of all stacks...\n");
-  const overallStartTime = Date.now();
+const program = new Command();
 
-  const projectName = "BYOC-Example_AWS-Managed-Redis-Kafka-Self-Hosted-Temporal-Clickhouse";
-  const org = "514labs"; // Update this to your org name if different
+// Validate config directory exists
+function validateConfigDir(org: string): void {
+  const configDir = path.join(process.cwd(), "config", org);
+  const pulumiYamlPath = path.join(configDir, "Pulumi.yaml");
 
-  // Define stacks in deployment order
-  const stacks = [
-    { name: "base", description: "VPC, EKS, and networking infrastructure" },
-    { name: "byoc-services", description: "Redis, Kafka, Temporal, and ClickHouse services" },
-    { name: "datadog", description: "Datadog" },
-    { name: "mds", description: "MDS - Moose Deployment Service" },
-  ];
+  if (!fs.existsSync(configDir)) {
+    console.error(`Error: Config directory does not exist: ${configDir}`);
+    process.exit(1);
+  }
 
-  const stackTimings: { [key: string]: number } = {};
+  if (!fs.existsSync(pulumiYamlPath)) {
+    console.error(`Error: Pulumi.yaml not found in: ${configDir}`);
+    process.exit(1);
+  }
+}
 
-  try {
-    for (const stackInfo of stacks) {
-      console.log(`\n📦 Deploying stack: ${stackInfo.name}`);
-      console.log(`   ${stackInfo.description}`);
-      console.log("   " + "=".repeat(50));
+// Copy Pulumi.yaml from config to project root
+function copyPulumiYaml(org: string): string {
+  const configDir = path.join(process.cwd(), "config", org);
+  const sourcePath = path.join(configDir, "Pulumi.yaml");
+  const destPath = path.join(process.cwd(), "Pulumi.yaml");
 
-      const stackStartTime = Date.now();
+  fs.copyFileSync(sourcePath, destPath);
+  return destPath;
+}
 
-      // Use the root directory for all stacks
-      const stackWorkDir = path.resolve();
+// Remove Pulumi.yaml from project root
+function removePulumiYaml(pulumiYamlPath: string): void {
+  if (fs.existsSync(pulumiYamlPath)) {
+    fs.unlinkSync(pulumiYamlPath);
+  }
+}
 
-      // Create or select the stack
-      const stack = await LocalWorkspace.createOrSelectStack({
-        stackName: stackInfo.name,
-        workDir: stackWorkDir,
-      });
+// Track current pulumi process for signal handling
+let currentPulumiProcess: ReturnType<typeof spawn> | null = null;
 
-      console.log(`   ✓ Stack ${stackInfo.name} selected`);
+// Execute pulumi cancel command
+function executePulumiCancel(
+  stackName: string,
+  org: string,
+  workDir: string,
+  pulumiOrg: string
+): Promise<{ success: boolean }> {
+  return new Promise((resolve, reject) => {
+    const configFile = path.join("config", org, `Pulumi.${stackName}.yaml`);
+    const fullStackName = `${pulumiOrg}/${stackName}`;
 
-      // Get the stack info to check if it needs to be created
-      const info = await stack.info();
-      if (!info) {
-        console.log(`   ℹ️  Stack ${stackInfo.name} doesn't exist, creating...`);
-      }
+    const args = ["cancel", "--stack", fullStackName, "--yes", "--non-interactive"];
 
-      // Set up event handlers for progress
-      console.log(`   🔄 Running 'pulumi up' for ${stackInfo.name}...`);
+    console.log(`   🔄 Cancelling update for ${fullStackName}...`);
 
-      const upResult = await stack.up({
-        onOutput: (out) => process.stdout.write(out),
-        onEvent: (event) => {
-          if (event.diagnosticEvent && event.diagnosticEvent.severity === "error") {
-            console.error(`   ❌ Error: ${event.diagnosticEvent.message}`);
-          }
-        },
-      });
+    const pulumiProcess = spawn("pulumi", args, {
+      cwd: workDir,
+      stdio: "inherit",
+      shell: false,
+    });
 
-      if (upResult.summary.result === "succeeded") {
-        const stackEndTime = Date.now();
-        const stackDuration = (stackEndTime - stackStartTime) / 1000; // Convert to seconds
-        stackTimings[stackInfo.name] = stackDuration;
-
-        console.log(`\n   ✅ Stack ${stackInfo.name} deployed successfully!`);
-        console.log(`   📊 Summary: ${upResult.summary.resourceChanges} resource changes`);
-        console.log(`   ⏱️  Time: ${formatDuration(stackDuration)}`);
+    pulumiProcess.on("close", (code) => {
+      if (code === 0) {
+        resolve({ success: true });
       } else {
-        throw new Error(`Deployment of ${stackInfo.name} failed: ${upResult.summary.result}`);
+        reject(new Error(`Pulumi cancel failed with exit code ${code}`));
       }
+    });
 
-      // Show outputs
-      const outputs = await stack.outputs();
-      if (Object.keys(outputs).length > 0) {
-        console.log(`   📤 Outputs:`);
-        for (const [key, value] of Object.entries(outputs)) {
-          console.log(`      - ${key}: ${JSON.stringify(value.value).substring(0, 100)}...`);
+    pulumiProcess.on("error", (error) => {
+      reject(error);
+    });
+  });
+}
+
+// Execute pulumi CLI command
+function executePulumiCommand(
+  command: string,
+  stackName: string,
+  org: string,
+  workDir: string,
+  pulumiOrg: string
+): Promise<{ success: boolean; duration: number }> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    const configFile = path.join("config", org, `Pulumi.${stackName}.yaml`);
+    const fullStackName = `${pulumiOrg}/${stackName}`;
+
+    const args = [
+      command,
+      "--stack",
+      fullStackName,
+      "--config-file",
+      configFile,
+      "--yes",
+      "--non-interactive",
+    ];
+
+    if (command === "up") {
+      args.push("--skip-preview"); // Skip preview for automation
+    }
+
+    if (command === "preview") {
+      args.push("--diff"); // Show detailed diff in preview
+    }
+
+    console.log(`   🔄 Running 'pulumi ${command}' for ${fullStackName}...`);
+    console.log(`   📁 Using config: ${configFile}`);
+
+    const pulumiProcess = spawn("pulumi", args, {
+      cwd: workDir,
+      stdio: "inherit",
+      shell: false,
+    });
+
+    // Track current process for signal handling
+    currentPulumiProcess = pulumiProcess;
+
+    pulumiProcess.on("close", (code, signal) => {
+      currentPulumiProcess = null;
+      const duration = (Date.now() - startTime) / 1000;
+      if (code === 0) {
+        resolve({ success: true, duration });
+      } else if (signal) {
+        // Process was terminated by signal
+        reject(new Error(`Pulumi ${command} was terminated by signal: ${signal}`));
+      } else {
+        // Provide more helpful error messages for common exit codes
+        let errorMessage = `Pulumi ${command} failed with exit code ${code}`;
+        if (code === 255) {
+          errorMessage += `\n   💡 Tip: This often indicates a conflict or state issue.`;
+          errorMessage += `\n   Try: pulumi cancel --stack ${fullStackName}`;
+          errorMessage += `\n   Or check for stuck updates: pulumi stack --stack ${fullStackName}`;
         }
+        reject(new Error(errorMessage));
       }
-    }
+    });
 
-    const overallEndTime = Date.now();
-    const overallDuration = (overallEndTime - overallStartTime) / 1000;
-
-    console.log("\n\n🎉 All stacks deployed successfully!");
-    console.log("\n📋 Stack deployment summary:");
-    for (const stackInfo of stacks) {
-      const duration = stackTimings[stackInfo.name];
-      console.log(`   ✓ ${stackInfo.name}: Deployed in ${formatDuration(duration)}`);
-    }
-    console.log(`\n⏱️  Total deployment time: ${formatDuration(overallDuration)}`);
-
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-  } catch (error) {
-    console.error("\n❌ Deployment failed:", error);
-    process.exit(1);
-  }
+    pulumiProcess.on("error", (error) => {
+      currentPulumiProcess = null;
+      reject(error);
+    });
+  });
 }
 
-// Add destroy all function as well
-async function destroyAllStacks() {
-  console.log("🗑️  Starting destruction of all stacks...\n");
-  console.log("⚠️  WARNING: This will destroy all resources in reverse order!\n");
-  const overallStartTime = Date.now();
-
-  const projectName = "BYOC-Example_AWS-Managed-Redis-Kafka-Self-Hosted-Temporal-Clickhouse";
-
-  // Define stacks in REVERSE deployment order for destruction
-  const stacks = [
-    { name: "mds", description: "MDS - Moose Deployment Service" },
-    { name: "byoc-services", description: "Redis, Kafka, Temporal, and ClickHouse services" },
-    { name: "base", description: "VPC, EKS, and networking infrastructure" },
-  ];
-
-  const stackTimings: { [key: string]: number } = {};
+// Execute pulumi command with automatic conflict resolution
+async function executePulumiCommandWithRetry(
+  command: string,
+  stackName: string,
+  org: string,
+  workDir: string,
+  pulumiOrg: string
+): Promise<{ success: boolean; duration: number }> {
+  // Only apply retry logic to commands that can have conflicts
+  if (!COMMANDS_WITH_RETRY.includes(command)) {
+    return await executePulumiCommand(command, stackName, org, workDir, pulumiOrg);
+  }
 
   try {
-    for (const stackInfo of stacks) {
-      console.log(`\n🗑️  Destroying stack: ${stackInfo.name}`);
-      console.log(`   ${stackInfo.description}`);
-      console.log("   " + "=".repeat(50));
+    return await executePulumiCommand(command, stackName, org, workDir, pulumiOrg);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Check if this is a true conflict error (another update in progress)
+    // Only retry on actual conflicts, not on compilation or runtime errors
+    const isConflict =
+      errorMessage.includes("conflict") ||
+      errorMessage.includes("another update is currently in progress") ||
+      errorMessage.includes("Conflict") ||
+      errorMessage.includes("another operation (install/upgrade/rollback) is in progress");
 
-      const stackStartTime = Date.now();
-
-      // Use the root directory for all stacks
-      const stackWorkDir = path.resolve();
-
-      const stack = await LocalWorkspace.selectStack({
-        stackName: stackInfo.name,
-        workDir: stackWorkDir,
-      });
-
-      console.log(`   🔄 Running 'pulumi destroy' for ${stackInfo.name}...`);
-
-      const destroyResult = await stack.destroy({
-        onOutput: (out) => process.stdout.write(out),
-      });
-
-      if (destroyResult.summary.result === "succeeded") {
-        const stackEndTime = Date.now();
-        const stackDuration = (stackEndTime - stackStartTime) / 1000;
-        stackTimings[stackInfo.name] = stackDuration;
-
-        console.log(`\n   ✅ Stack ${stackInfo.name} destroyed successfully!`);
-        console.log(`   ⏱️  Time: ${formatDuration(stackDuration)}`);
-      } else {
-        throw new Error(`Destruction of ${stackInfo.name} failed: ${destroyResult.summary.result}`);
+    if (isConflict) {
+      console.log(`\n   ⚠️  Detected conflict - automatically cancelling stuck update...`);
+      try {
+        await executePulumiCancel(stackName, org, workDir, pulumiOrg);
+        console.log(`   ✅ Cancelled stuck update, retrying ${command}...\n`);
+        // Wait a moment for the cancellation to propagate
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Retry the original command
+        return await executePulumiCommand(command, stackName, org, workDir, pulumiOrg);
+      } catch (cancelError) {
+        console.error(`   ❌ Failed to cancel stuck update:`, cancelError);
+        throw error; // Throw original error if cancel fails
       }
     }
-
-    const overallEndTime = Date.now();
-    const overallDuration = (overallEndTime - overallStartTime) / 1000;
-
-    console.log("\n\n✅ All stacks destroyed successfully!");
-    console.log("\n📋 Stack destruction summary:");
-    for (const stackInfo of stacks) {
-      const duration = stackTimings[stackInfo.name];
-      console.log(`   ✓ ${stackInfo.name}: Destroyed in ${formatDuration(duration)}`);
-    }
-    console.log(`\n⏱️  Total destruction time: ${formatDuration(overallDuration)}`);
-  } catch (error) {
-    console.error("\n❌ Destruction failed:", error);
-    process.exit(1);
+    // Re-throw non-conflict errors (including compilation errors, runtime errors, etc.)
+    throw error;
   }
 }
 
-// Helper function to format duration in a human-readable way
+// Helper function to format duration
 function formatDuration(seconds: number): string {
   if (seconds < 60) {
     return `${seconds.toFixed(1)}s`;
@@ -172,16 +200,507 @@ function formatDuration(seconds: number): string {
   return `${minutes}m ${remainingSeconds.toFixed(1)}s`;
 }
 
-// Main CLI handler
-const command = process.argv[2];
+// Define all available stacks
+const ALL_STACKS = [
+  { name: "base", description: "VPC, EKS, and networking infrastructure" },
+  {
+    name: "byoc-services",
+    description: "Redis, Kafka, Temporal, and ClickHouse services",
+  },
+  { name: "datadog", description: "Datadog" },
+  { name: "mds", description: "MDS - Moose Deployment Service" },
+];
 
-if (command === "up") {
-  deployAllStacks();
-} else if (command === "destroy") {
-  destroyAllStacks();
-} else {
-  console.log("Usage: ts-node launcher.ts [up|destroy]");
-  console.log("  up      - Deploy all stacks in order");
-  console.log("  destroy - Destroy all stacks in reverse order");
-  process.exit(1);
+// Commands that support the retry mechanism
+const COMMANDS_WITH_RETRY = ["up", "destroy", "refresh"];
+
+// Get stack info by name
+function getStackInfo(stackName: string): { name: string; description: string } | undefined {
+  return ALL_STACKS.find((s) => s.name === stackName);
 }
+
+// Validate stack name
+function validateStackName(stackName: string): void {
+  if (!getStackInfo(stackName)) {
+    const validStacks = ALL_STACKS.map((s) => s.name).join(", ");
+    console.error(`Error: Invalid stack name "${stackName}"`);
+    console.error(`Valid stacks: ${validStacks}`);
+    process.exit(1);
+  }
+}
+
+async function deployStacks(org: string, pulumiOrg: string, stackName?: string) {
+  const stacksToDeploy = stackName ? [getStackInfo(stackName)!] : ALL_STACKS;
+
+  const stackLabel = stackName ? `stack "${stackName}"` : "all stacks";
+  console.log(`🚀 Starting deployment of ${stackLabel} for org: ${org}...\n`);
+  const overallStartTime = Date.now();
+
+  // Validate config directory
+  validateConfigDir(org);
+
+  // Validate stack name if provided
+  if (stackName) {
+    validateStackName(stackName);
+  }
+
+  // Copy Pulumi.yaml to project root
+  const pulumiYamlPath = copyPulumiYaml(org);
+  console.log(`✓ Copied Pulumi.yaml from config/${org}/ to project root\n`);
+
+  const workDir = process.cwd();
+
+  // Set up signal handlers for graceful shutdown
+  const signalHandler = (signal: NodeJS.Signals) => {
+    console.log(`\n\n⚠️  Received ${signal}, shutting down gracefully...`);
+    if (currentPulumiProcess) {
+      console.log(`   Sending SIGTERM to pulumi process...`);
+      currentPulumiProcess.kill("SIGTERM");
+    }
+    // Cleanup will happen in finally block
+  };
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
+
+  const stackTimings: { [key: string]: number } = {};
+
+  try {
+    for (const stackInfo of stacksToDeploy) {
+      console.log(`\n📦 Deploying stack: ${stackInfo.name}`);
+      console.log(`   ${stackInfo.description}`);
+      console.log("   " + "=".repeat(50));
+
+      try {
+        const result = await executePulumiCommandWithRetry(
+          "up",
+          stackInfo.name,
+          org,
+          workDir,
+          pulumiOrg
+        );
+        stackTimings[stackInfo.name] = result.duration;
+
+        console.log(`\n   ✅ Stack ${stackInfo.name} deployed successfully!`);
+        console.log(`   ⏱️  Time: ${formatDuration(result.duration)}`);
+      } catch (error) {
+        console.error(`\n   ❌ Failed to deploy stack ${stackInfo.name}:`, error);
+        throw error;
+      }
+    }
+
+    const overallEndTime = Date.now();
+    const overallDuration = (overallEndTime - overallStartTime) / 1000;
+
+    const successMessage = stackName
+      ? `🎉 Stack ${stackName} deployed successfully!`
+      : `🎉 All stacks deployed successfully!`;
+    console.log(`\n\n${successMessage}`);
+    console.log("\n📋 Stack deployment summary:");
+    for (const stackInfo of stacksToDeploy) {
+      const duration = stackTimings[stackInfo.name];
+      console.log(`   ✓ ${stackInfo.name}: Deployed in ${formatDuration(duration)}`);
+    }
+    console.log(`\n⏱️  Total deployment time: ${formatDuration(overallDuration)}`);
+  } catch (error) {
+    console.error("\n❌ Deployment failed:", error);
+    throw error;
+  } finally {
+    // Remove signal handlers
+    process.removeListener("SIGINT", signalHandler);
+    process.removeListener("SIGTERM", signalHandler);
+    // Always cleanup Pulumi.yaml
+    removePulumiYaml(pulumiYamlPath);
+    console.log(`\n✓ Cleaned up Pulumi.yaml from project root`);
+  }
+}
+
+async function destroyStacks(org: string, pulumiOrg: string, stackName?: string) {
+  // If specific stack, use it; otherwise use reverse order for all stacks
+  const stacksToDestroy = stackName ? [getStackInfo(stackName)!] : [...ALL_STACKS].reverse();
+
+  const stackLabel = stackName ? `stack "${stackName}"` : "all stacks";
+  console.log(`🗑️  Starting destruction of ${stackLabel} for org: ${org}...\n`);
+  if (!stackName) {
+    console.log("⚠️  WARNING: This will destroy all resources in reverse order!\n");
+  }
+  const overallStartTime = Date.now();
+
+  // Validate config directory
+  validateConfigDir(org);
+
+  // Validate stack name if provided
+  if (stackName) {
+    validateStackName(stackName);
+  }
+
+  // Copy Pulumi.yaml to project root
+  const pulumiYamlPath = copyPulumiYaml(org);
+  console.log(`✓ Copied Pulumi.yaml from config/${org}/ to project root\n`);
+
+  const workDir = process.cwd();
+
+  // Set up signal handlers for graceful shutdown
+  const signalHandler = (signal: NodeJS.Signals) => {
+    console.log(`\n\n⚠️  Received ${signal}, shutting down gracefully...`);
+    if (currentPulumiProcess) {
+      console.log(`   Sending SIGTERM to pulumi process...`);
+      currentPulumiProcess.kill("SIGTERM");
+    }
+    // Cleanup will happen in finally block
+  };
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
+
+  const stackTimings: { [key: string]: number } = {};
+
+  try {
+    for (const stackInfo of stacksToDestroy) {
+      console.log(`\n🗑️  Destroying stack: ${stackInfo.name}`);
+      console.log(`   ${stackInfo.description}`);
+      console.log("   " + "=".repeat(50));
+
+      try {
+        const result = await executePulumiCommandWithRetry(
+          "destroy",
+          stackInfo.name,
+          org,
+          workDir,
+          pulumiOrg
+        );
+        stackTimings[stackInfo.name] = result.duration;
+
+        console.log(`\n   ✅ Stack ${stackInfo.name} destroyed successfully!`);
+        console.log(`   ⏱️  Time: ${formatDuration(result.duration)}`);
+      } catch (error) {
+        console.error(`\n   ❌ Failed to destroy stack ${stackInfo.name}:`, error);
+        throw error;
+      }
+    }
+
+    const overallEndTime = Date.now();
+    const overallDuration = (overallEndTime - overallStartTime) / 1000;
+
+    const successMessage = stackName
+      ? `✅ Stack ${stackName} destroyed successfully!`
+      : `✅ All stacks destroyed successfully!`;
+    console.log(`\n\n${successMessage}`);
+    console.log("\n📋 Stack destruction summary:");
+    for (const stackInfo of stacksToDestroy) {
+      const duration = stackTimings[stackInfo.name];
+      console.log(`   ✓ ${stackInfo.name}: Destroyed in ${formatDuration(duration)}`);
+    }
+    console.log(`\n⏱️  Total destruction time: ${formatDuration(overallDuration)}`);
+  } catch (error) {
+    console.error("\n❌ Destruction failed:", error);
+    throw error;
+  } finally {
+    // Remove signal handlers
+    process.removeListener("SIGINT", signalHandler);
+    process.removeListener("SIGTERM", signalHandler);
+    // Always cleanup Pulumi.yaml
+    removePulumiYaml(pulumiYamlPath);
+    console.log(`\n✓ Cleaned up Pulumi.yaml from project root`);
+  }
+}
+
+async function cancelStacks(org: string, pulumiOrg: string, stackName?: string) {
+  const stacksToCancel = stackName ? [getStackInfo(stackName)!] : ALL_STACKS;
+
+  const stackLabel = stackName ? `stack "${stackName}"` : "all stacks";
+  console.log(`🚫 Cancelling in-progress updates for ${stackLabel} in org: ${org}...\n`);
+
+  // Validate config directory
+  validateConfigDir(org);
+
+  // Validate stack name if provided
+  if (stackName) {
+    validateStackName(stackName);
+  }
+
+  // Copy Pulumi.yaml to project root
+  const pulumiYamlPath = copyPulumiYaml(org);
+  console.log(`✓ Copied Pulumi.yaml from config/${org}/ to project root\n`);
+
+  const workDir = process.cwd();
+
+  try {
+    for (const stackInfo of stacksToCancel) {
+      console.log(`\n🚫 Cancelling stack: ${stackInfo.name}`);
+      console.log("   " + "=".repeat(50));
+
+      try {
+        await executePulumiCancel(stackInfo.name, org, workDir, pulumiOrg);
+        console.log(`\n   ✅ Stack ${stackInfo.name} cancelled successfully!`);
+      } catch (error) {
+        console.error(`\n   ⚠️  Failed to cancel stack ${stackInfo.name}:`, error);
+        // Continue with other stacks even if one fails
+      }
+    }
+
+    console.log(`\n\n✅ Cancellation complete!`);
+  } catch (error) {
+    console.error("\n❌ Cancellation failed:", error);
+    throw error;
+  } finally {
+    // Always cleanup Pulumi.yaml
+    removePulumiYaml(pulumiYamlPath);
+    console.log(`\n✓ Cleaned up Pulumi.yaml from project root`);
+  }
+}
+
+async function previewStacks(org: string, pulumiOrg: string, stackName?: string) {
+  const stacksToPreview = stackName ? [getStackInfo(stackName)!] : ALL_STACKS;
+
+  const stackLabel = stackName ? `stack "${stackName}"` : "all stacks";
+  console.log(`🔍 Previewing changes for ${stackLabel} in org: ${org}...\n`);
+  const overallStartTime = Date.now();
+
+  // Validate config directory
+  validateConfigDir(org);
+
+  // Validate stack name if provided
+  if (stackName) {
+    validateStackName(stackName);
+  }
+
+  // Copy Pulumi.yaml to project root
+  const pulumiYamlPath = copyPulumiYaml(org);
+  console.log(`✓ Copied Pulumi.yaml from config/${org}/ to project root\n`);
+
+  const workDir = process.cwd();
+
+  // Set up signal handlers for graceful shutdown
+  const signalHandler = (signal: NodeJS.Signals) => {
+    console.log(`\n\n⚠️  Received ${signal}, shutting down gracefully...`);
+    if (currentPulumiProcess) {
+      console.log(`   Sending SIGTERM to pulumi process...`);
+      currentPulumiProcess.kill("SIGTERM");
+    }
+    // Cleanup will happen in finally block
+  };
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
+
+  const stackTimings: { [key: string]: number } = {};
+
+  try {
+    for (const stackInfo of stacksToPreview) {
+      console.log(`\n🔍 Previewing stack: ${stackInfo.name}`);
+      console.log(`   ${stackInfo.description}`);
+      console.log("   " + "=".repeat(50));
+
+      try {
+        const result = await executePulumiCommandWithRetry(
+          "preview",
+          stackInfo.name,
+          org,
+          workDir,
+          pulumiOrg
+        );
+        stackTimings[stackInfo.name] = result.duration;
+
+        console.log(`\n   ✅ Stack ${stackInfo.name} preview completed!`);
+        console.log(`   ⏱️  Time: ${formatDuration(result.duration)}`);
+      } catch (error) {
+        console.error(`\n   ❌ Failed to preview stack ${stackInfo.name}:`, error);
+        throw error;
+      }
+    }
+
+    const overallEndTime = Date.now();
+    const overallDuration = (overallEndTime - overallStartTime) / 1000;
+
+    const successMessage = stackName
+      ? `🎉 Stack ${stackName} preview completed!`
+      : `🎉 All stack previews completed!`;
+    console.log(`\n\n${successMessage}`);
+    console.log("\n📋 Stack preview summary:");
+    for (const stackInfo of stacksToPreview) {
+      const duration = stackTimings[stackInfo.name];
+      console.log(`   ✓ ${stackInfo.name}: Previewed in ${formatDuration(duration)}`);
+    }
+    console.log(`\n⏱️  Total preview time: ${formatDuration(overallDuration)}`);
+  } catch (error) {
+    console.error("\n❌ Preview failed:", error);
+    throw error;
+  } finally {
+    // Remove signal handlers
+    process.removeListener("SIGINT", signalHandler);
+    process.removeListener("SIGTERM", signalHandler);
+    // Always cleanup Pulumi.yaml
+    removePulumiYaml(pulumiYamlPath);
+    console.log(`\n✓ Cleaned up Pulumi.yaml from project root`);
+  }
+}
+
+async function refreshStacks(org: string, pulumiOrg: string, stackName?: string) {
+  const stacksToRefresh = stackName ? [getStackInfo(stackName)!] : ALL_STACKS;
+
+  const stackLabel = stackName ? `stack "${stackName}"` : "all stacks";
+  console.log(`🔄 Refreshing state for ${stackLabel} in org: ${org}...\n`);
+  const overallStartTime = Date.now();
+
+  // Validate config directory
+  validateConfigDir(org);
+
+  // Validate stack name if provided
+  if (stackName) {
+    validateStackName(stackName);
+  }
+
+  // Copy Pulumi.yaml to project root
+  const pulumiYamlPath = copyPulumiYaml(org);
+  console.log(`✓ Copied Pulumi.yaml from config/${org}/ to project root\n`);
+
+  const workDir = process.cwd();
+
+  // Set up signal handlers for graceful shutdown
+  const signalHandler = (signal: NodeJS.Signals) => {
+    console.log(`\n\n⚠️  Received ${signal}, shutting down gracefully...`);
+    if (currentPulumiProcess) {
+      console.log(`   Sending SIGTERM to pulumi process...`);
+      currentPulumiProcess.kill("SIGTERM");
+    }
+    // Cleanup will happen in finally block
+  };
+  process.on("SIGINT", signalHandler);
+  process.on("SIGTERM", signalHandler);
+
+  const stackTimings: { [key: string]: number } = {};
+
+  try {
+    for (const stackInfo of stacksToRefresh) {
+      console.log(`\n🔄 Refreshing stack: ${stackInfo.name}`);
+      console.log(`   ${stackInfo.description}`);
+      console.log("   " + "=".repeat(50));
+
+      try {
+        const result = await executePulumiCommandWithRetry(
+          "refresh",
+          stackInfo.name,
+          org,
+          workDir,
+          pulumiOrg
+        );
+        stackTimings[stackInfo.name] = result.duration;
+
+        console.log(`\n   ✅ Stack ${stackInfo.name} refreshed successfully!`);
+        console.log(`   ⏱️  Time: ${formatDuration(result.duration)}`);
+      } catch (error) {
+        console.error(`\n   ❌ Failed to refresh stack ${stackInfo.name}:`, error);
+        throw error;
+      }
+    }
+
+    const overallEndTime = Date.now();
+    const overallDuration = (overallEndTime - overallStartTime) / 1000;
+
+    const successMessage = stackName
+      ? `🎉 Stack ${stackName} refreshed successfully!`
+      : `🎉 All stacks refreshed successfully!`;
+    console.log(`\n\n${successMessage}`);
+    console.log("\n📋 Stack refresh summary:");
+    for (const stackInfo of stacksToRefresh) {
+      const duration = stackTimings[stackInfo.name];
+      console.log(`   ✓ ${stackInfo.name}: Refreshed in ${formatDuration(duration)}`);
+    }
+    console.log(`\n⏱️  Total refresh time: ${formatDuration(overallDuration)}`);
+  } catch (error) {
+    console.error("\n❌ Refresh failed:", error);
+    throw error;
+  } finally {
+    // Remove signal handlers
+    process.removeListener("SIGINT", signalHandler);
+    process.removeListener("SIGTERM", signalHandler);
+    // Always cleanup Pulumi.yaml
+    removePulumiYaml(pulumiYamlPath);
+    console.log(`\n✓ Cleaned up Pulumi.yaml from project root`);
+  }
+}
+
+// Set up commander CLI
+program
+  .name("launcher")
+  .description("Deploy, destroy, or cancel Pulumi stacks for a given org")
+  .version("1.0.0");
+
+program
+  .command("up")
+  .description("Deploy stacks (all stacks if --stack not specified)")
+  .requiredOption("--org <org-name>", "Organization name (config directory)")
+  .requiredOption("--pulumi-org <pulumi-org>", "Pulumi Cloud organization name")
+  .option("--stack <stack-name>", "Specific stack to deploy (base, byoc-services, datadog, mds)")
+  .action(async (options: { org: string; stack?: string; pulumiOrg: string }) => {
+    try {
+      await deployStacks(options.org, options.pulumiOrg, options.stack);
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("destroy")
+  .description("Destroy stacks (all stacks in reverse order if --stack not specified)")
+  .requiredOption("--org <org-name>", "Organization name (config directory)")
+  .requiredOption("--pulumi-org <pulumi-org>", "Pulumi Cloud organization name")
+  .option("--stack <stack-name>", "Specific stack to destroy (base, byoc-services, datadog, mds)")
+  .action(async (options: { org: string; stack?: string; pulumiOrg: string }) => {
+    try {
+      await destroyStacks(options.org, options.pulumiOrg, options.stack);
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("cancel")
+  .description("Cancel in-progress updates for stacks")
+  .requiredOption("--org <org-name>", "Organization name (config directory)")
+  .requiredOption("--pulumi-org <pulumi-org>", "Pulumi Cloud organization name")
+  .option("--stack <stack-name>", "Specific stack to cancel (base, byoc-services, datadog, mds)")
+  .action(async (options: { org: string; stack?: string; pulumiOrg: string }) => {
+    try {
+      await cancelStacks(options.org, options.pulumiOrg, options.stack);
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("preview")
+  .description(
+    "Preview changes for stacks without applying them (all stacks if --stack not specified)"
+  )
+  .requiredOption("--org <org-name>", "Organization name (config directory)")
+  .requiredOption("--pulumi-org <pulumi-org>", "Pulumi Cloud organization name")
+  .option("--stack <stack-name>", "Specific stack to preview (base, byoc-services, datadog, mds)")
+  .action(async (options: { org: string; stack?: string; pulumiOrg: string }) => {
+    try {
+      await previewStacks(options.org, options.pulumiOrg, options.stack);
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("refresh")
+  .description(
+    "Refresh stack state to match actual cloud resources (all stacks if --stack not specified)"
+  )
+  .requiredOption("--org <org-name>", "Organization name (config directory)")
+  .requiredOption("--pulumi-org <pulumi-org>", "Pulumi Cloud organization name")
+  .option("--stack <stack-name>", "Specific stack to refresh (base, byoc-services, datadog, mds)")
+  .action(async (options: { org: string; stack?: string; pulumiOrg: string }) => {
+    try {
+      await refreshStacks(options.org, options.pulumiOrg, options.stack);
+    } catch (error) {
+      console.error("Fatal error:", error);
+      process.exit(1);
+    }
+  });
+
+program.parse();

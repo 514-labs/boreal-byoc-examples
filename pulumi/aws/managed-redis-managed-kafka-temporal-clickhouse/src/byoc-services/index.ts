@@ -4,7 +4,8 @@ import * as aws from "@pulumi/aws";
 import { createElastiCacheRedis } from "./resources/redis";
 import { createMSKCluster } from "./resources/kafka";
 import { installTemporal } from "./resources/temporal";
-import { deployClickhouse } from "./resources/clickhouse";
+import { installClickhouseOperator } from "./resources/clickhouse-operator";
+import { deployClickhouseDatabase } from "./resources/clickhouse";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -41,6 +42,10 @@ async function main() {
   const temporalCassandraStorageSize = config.get("temporalCassandraStorageSize") ?? "50Gi";
   const temporalElasticsearchStorageSize =
     config.get("temporalElasticsearchStorageSize") ?? "100Gi";
+  const temporalCassandraMemory = config.get("temporalCassandraMemory") ?? "2Gi";
+  const temporalCassandraCpu = config.get("temporalCassandraCpu") ?? "1000m";
+  const temporalServerMemory = config.get("temporalServerMemory") ?? "512Mi";
+  const temporalServerCpu = config.get("temporalServerCpu") ?? "500m";
 
   const clickhouseShards = parseInt(config.require("clickhouseShards"));
   const clickhouseStorageSize = config.require("clickhouseStorageSize");
@@ -61,6 +66,15 @@ async function main() {
     Stack: stackName,
     OrgId: orgId,
   };
+
+  // Generate a unique bucket name suffix (first 8 chars of org ID hash)
+  // S3 bucket names must be globally unique and 3-63 characters
+  const crypto = require("crypto");
+  const uniqueSuffix = crypto
+    .createHash("sha256")
+    .update(`${orgId}-${projectName}-${stackName}`)
+    .digest("hex")
+    .substring(0, 8);
 
   // Reference the base stack to get the EKS cluster and VPC resources
   const baseStack = new pulumi.StackReference("base", {
@@ -143,20 +157,47 @@ async function main() {
           namespaceRetention: temporalNamespaceRetention,
           cassandraStorageSize: temporalCassandraStorageSize,
           elasticsearchStorageSize: temporalElasticsearchStorageSize,
+          cassandraMemory: temporalCassandraMemory,
+          cassandraCpu: temporalCassandraCpu,
+          serverMemory: temporalServerMemory,
+          serverCpu: temporalServerCpu,
           releaseOpts: releaseOpts,
         });
 
-        await deployClickhouse({
-          helmArgs: {
-            namespace: "byoc-clickhouse",
-            clickhouseShards,
-            clickhouseReplicas,
-            clickhouseStorageSize,
-            cpuRequest: clickhouseRequestedCpu,
-            cpuLimit: clickhouseLimitCpu,
-            memoryRequest: clickhouseRequestedMemory,
-            memoryLimit: clickhouseLimitMemory,
-            releaseOpts: releaseOpts,
+        // Install ClickHouse Operator (cluster-scoped)
+        const clickhouseOperator = installClickhouseOperator({
+          namespace: "clickhouse-operator",
+          chartVersion: undefined, // Use latest version
+          watchNamespaces: ["byoc-clickhouse"], // Watch the namespace where ClickHouse will be deployed
+          releaseOpts: releaseOpts,
+        });
+
+        // Deploy ClickHouse Database (depends on operator)
+        await deployClickhouseDatabase({
+          clickhouseShards,
+          clickhouseReplicas,
+          clickhouseStorageSize,
+          requestedMemory: clickhouseRequestedMemory,
+          requestedCpu: clickhouseRequestedCpu,
+          releaseOpts: {
+            ...releaseOpts,
+            dependsOn: [clickhouseOperator.helmRelease],
+          },
+          tags: commonTags,
+          // Optional: Configure S3 storage
+          s3Config: {
+            // S3 bucket names must be globally unique and 3-63 chars
+            // Format: <cluster>-ch-<unique-suffix>
+            bucketName: pulumi.interpolate`${eksClusterName}-ch-${uniqueSuffix}`,
+            region: "us-east-2",
+            useIAMRole: true,
+            cacheSizeGB: 20,
+            hotMaxPartSizeGB: 2,
+            hotColdMoveFactor: 0.2,
+          },
+          eksClusterInfo: {
+            clusterName: eksClusterName,
+            oidcProviderArn: eksOidcProviderArn,
           },
         });
       }
