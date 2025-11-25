@@ -33,6 +33,40 @@ export async function installTailscaleOperator(
         operatorConfig: {
           hostname: operatorHostname,
           defaultTags: k8sOperatorDefaultTags,
+          // Ensure the operator pod runs on its own dedicated node
+          nodeSelector: {
+            "kubernetes.io/os": "linux",
+          },
+          // Prevent other pods from co-locating on the same node as the Tailscale operator
+          affinity: {
+            podAntiAffinity: {
+              requiredDuringSchedulingIgnoredDuringExecution: [
+                {
+                  labelSelector: {
+                    matchExpressions: [
+                      {
+                        key: "app.kubernetes.io/name",
+                        operator: "NotIn",
+                        values: ["tailscale-operator"],
+                      },
+                    ],
+                  },
+                  topologyKey: "kubernetes.io/hostname",
+                },
+              ],
+            },
+          },
+          // Set resource requests and limits for the operator
+          resources: {
+            requests: {
+              cpu: "100m",
+              memory: "128Mi",
+            },
+            limits: {
+              cpu: "500m",
+              memory: "256Mi",
+            },
+          },
         },
         apiServerProxyConfig: {
           mode: "true",
