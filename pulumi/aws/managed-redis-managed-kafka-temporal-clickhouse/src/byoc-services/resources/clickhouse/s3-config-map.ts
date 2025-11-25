@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
 export interface ClickhouseS3Config {
-  bucketName: string;
+  bucketName: pulumi.Input<string>;
   region?: string;
   // Authentication options - either use IAM role or access keys
   useIAMRole?: boolean;
@@ -20,6 +20,96 @@ export interface ClickhouseS3Config {
   // Fraction of data to keep on hot storage before moving to cold. Range (0,1).
   // Recommended starting point: 0.2 (move when hot volume has ~20% new data).
   hotColdMoveFactor?: number;
+}
+
+/**
+ * Generates the S3 storage XML configuration content
+ *
+ * @param s3Config - S3 configuration parameters
+ * @returns Pulumi Output containing the XML configuration
+ */
+export function generateS3StorageXML(s3Config: ClickhouseS3Config): pulumi.Output<string> {
+  return pulumi.interpolate`<?xml version="1.0"?>
+<clickhouse>
+    <storage_configuration>
+        <disks>
+            <!-- S3 disk for cold data -->
+            <s3_disk>
+                <type>s3</type>
+                <endpoint>https://s3.${s3Config.region || "us-east-2"}.amazonaws.com/${s3Config.bucketName}/clickhouse/</endpoint>
+                ${
+                  s3Config.useIAMRole
+                    ? `<!-- Using IAM role for authentication -->
+                <use_environment_credentials>true</use_environment_credentials>`
+                    : pulumi.interpolate`<!-- Using access keys for authentication -->
+                <access_key_id>${s3Config.accessKeyId}</access_key_id>
+                <secret_access_key>${s3Config.secretAccessKey}</secret_access_key>`
+                }
+                <metadata_path>/var/lib/clickhouse/disks/s3_disk/</metadata_path>
+                <cache_enabled>true</cache_enabled>
+                <cache_path>/var/lib/clickhouse/disks/s3_cache/</cache_path>
+                <max_cache_size>${(s3Config.cacheSizeGB ?? 10) * 1024 * 1024 * 1024}</max_cache_size>
+                <skip_access_check>true</skip_access_check>
+            </s3_disk>
+
+            <!-- S3 disk with replica-specific paths -->
+            <s3_disk_replica>
+                <type>s3</type>
+                <endpoint>https://s3.${s3Config.region || "us-east-2"}.amazonaws.com/${s3Config.bucketName}/clickhouse_replica/</endpoint>
+                ${
+                  s3Config.useIAMRole
+                    ? `<use_environment_credentials>true</use_environment_credentials>`
+                    : pulumi.interpolate`<access_key_id>${s3Config.accessKeyId}</access_key_id>
+                <secret_access_key>${s3Config.secretAccessKey}</secret_access_key>`
+                }
+                <metadata_path>/var/lib/clickhouse/disks/s3_disk_replica/</metadata_path>
+                <cache_enabled>true</cache_enabled>
+                <cache_path>/var/lib/clickhouse/disks/s3_cache_replica/</cache_path>
+                <max_cache_size>${(s3Config.cacheSizeGB ?? 10) * 1024 * 1024 * 1024}</max_cache_size>
+                <skip_access_check>true</skip_access_check>
+            </s3_disk_replica>
+        </disks>
+
+        <policies>
+            <!-- Policy using only S3 -->
+            <s3_only>
+                <volumes>
+                    <main>
+                        <disk>s3_disk</disk>
+                    </main>
+                </volumes>
+            </s3_only>
+
+            <!-- Policy using S3 with replica-specific paths -->
+            <s3_replicated>
+                <volumes>
+                    <main>
+                        <disk>s3_disk_replica</disk>
+                    </main>
+                </volumes>
+            </s3_replicated>
+
+            <!-- Tiered storage policy (hot/cold) - enable default(local) + S3 -->
+            <hot_cold>
+                <volumes>
+                    <hot>
+                        <disk>default</disk>
+                        <max_data_part_size_bytes>${(s3Config.hotMaxPartSizeGB ?? 1) * 1024 * 1024 * 1024}</max_data_part_size_bytes>
+                    </hot>
+                    <cold>
+                        <disk>s3_disk</disk>
+                    </cold>
+                </volumes>
+                <move_factor>${s3Config.hotColdMoveFactor ?? 0.2}</move_factor>
+            </hot_cold>
+        </policies>
+    </storage_configuration>
+
+    <!-- Macros for replica identification -->
+    <macros>
+        <cluster>clickhouse-cluster</cluster>
+    </macros>
+</clickhouse>`;
 }
 
 /**
