@@ -16,5 +16,6 @@ config:
 
   # Tailscale Configuration
   tailscaleOperatorHostname: aws-YOUR_ORG_NAME_HERE-tailscale-operator-us-east-2
+  createTailscaleSubnetRouter: false # Set to true to advertise VPC CIDR to Tailscale network
   # tailscaleClientId: ""  # pulled from the ESC environment
   # tailscaleClientSecret: ""  # pulled from the ESC environment
