@@ -12,6 +12,7 @@ export async function installTailscaleOperator(
   tailscaleClientId: pulumi.Output<string>,
   tailscaleClientSecret: pulumi.Output<string>,
   k8sOperatorDefaultTags: string,
+  k8sProxiesDefaultTags: string,
   operatorHostname: string,
   subnetRouterName: string,
   vpcCidr: string,
@@ -25,7 +26,7 @@ export async function installTailscaleOperator(
         repo: "https://pkgs.tailscale.com/helmcharts",
       },
       chart: "tailscale-operator",
-      version: "1.82.0",
+      version: "1.88.4",
       namespace: "tailscale",
       createNamespace: true,
       values: {
@@ -33,9 +34,15 @@ export async function installTailscaleOperator(
           clientId: tailscaleClientId,
           clientSecret: tailscaleClientSecret,
         },
+        // proxyConfig sets default tags for proxies created by the operator
+        // (Services, Ingresses, etc.). Without this, proxies default to tag:k8s.
+        proxyConfig: {
+          defaultTags: k8sProxiesDefaultTags,
+        },
         operatorConfig: {
           hostname: operatorHostname,
           defaultTags: k8sOperatorDefaultTags,
+          acceptRoutes: true,
           // Ensure the operator pod runs on its own dedicated node
           nodeSelector: {
             "kubernetes.io/os": "linux",
