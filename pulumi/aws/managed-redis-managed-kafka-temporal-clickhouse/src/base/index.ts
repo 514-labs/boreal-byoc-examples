@@ -42,6 +42,7 @@ async function main() {
   const tailscaleClientId = config.requireSecret("tailscaleClientId"); // From ESC environment
   const tailscaleClientSecret = config.requireSecret("tailscaleClientSecret"); // From ESC environment
   const tailscaleK8sOperatorDefaultTags = config.require("tailscaleK8sOperatorDefaultTags"); // From ESC environment
+  const tailscaleK8sProxiesDefaultTags = config.require("tailscaleK8sProxiesDefaultTags"); // From ESC environment
   const tailscaleOperatorHostname = config.require("tailscaleOperatorHostname");
   const createTailscaleSubnetRouter = config.getBoolean("createTailscaleSubnetRouter") ?? false;
   const tailscaleSubnetRouterName = config.require("tailscaleSubnetRouterName");
@@ -109,6 +110,7 @@ async function main() {
     tailscaleClientId,
     tailscaleClientSecret,
     tailscaleK8sOperatorDefaultTags,
+    tailscaleK8sProxiesDefaultTags,
     tailscaleOperatorHostname,
     tailscaleSubnetRouterName,
     vpcCidrBlock,
