@@ -17,7 +17,7 @@ import { createPriorityClasses } from "./resources/priority-classes";
 async function main() {
   const stackName = pulumi.getStack();
   const projectName = pulumi.getProject();
-  
+
   const config = new pulumi.Config();
 
   const dockerConfigJson = config.requireSecret("dockerConfigJson");
@@ -26,13 +26,13 @@ async function main() {
   const mdsImageRepository = config.require("mdsImageRepository");
   const mdsChartVersion = config.require("mdsChartVersion");
   const mdsClusterPrefix = config.require("mdsClusterPrefix");
-  
+
   const borealWebhookUrl = config.require("borealWebhookUrl");
   const borealWebhookSecret = config.requireSecret("borealWebhookSecret");
 
   const pulumiAccessToken = config.requireSecret("pulumiAccessToken");
   const pulumiPassphrase = config.getSecret("pulumiPassphrase");
-  
+
   /// AWS MDS Configuration - Required for ClickPipes
   const awsSecretAccessKey = config.getSecret("awsMdsSecretAccessKey");
   const awsAccessKey = config.getSecret("awsMdsAccessKey");
@@ -41,6 +41,11 @@ async function main() {
 
   /// Redis Configuration - Required for Communication with Boreal Web Control Plane
   const redisProdDbUrl = config.require("redisProdDBURL");
+
+  /// Moose Compute Class Resources Configuration - Optional per-project overrides
+  const mooseComputeClassResources = config.getObject<Record<string, unknown>>(
+    "mooseComputeClassResources"
+  );
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -68,23 +73,27 @@ async function main() {
 
   await createPriorityClasses();
 
-  await installMds({
-    dockerConfigJson,
-    mdsEnvironment,
-    mdsImageTag,
-    mdsImageRepository,
-    mdsChartVersion,
-    mdsClusterPrefix,
-    borealWebhookUrl,
-    borealWebhookSecret,
-    pulumiAccessToken,
-    pulumiPassphrase,
-    awsMdsSecretAccessKey: awsSecretAccessKey,
-    awsMdsAccessKey: awsAccessKey,
-    awsMdsRegion: awsRegion,
-    awsBorealConnectionHub,
-    redisProdDbUrl,
-  }, releaseOpts);
+  await installMds(
+    {
+      dockerConfigJson,
+      mdsEnvironment,
+      mdsImageTag,
+      mdsImageRepository,
+      mdsChartVersion,
+      mdsClusterPrefix,
+      borealWebhookUrl,
+      borealWebhookSecret,
+      pulumiAccessToken,
+      pulumiPassphrase,
+      awsMdsSecretAccessKey: awsSecretAccessKey,
+      awsMdsAccessKey: awsAccessKey,
+      awsMdsRegion: awsRegion,
+      awsBorealConnectionHub,
+      redisProdDbUrl,
+      mooseComputeClassResources,
+    },
+    releaseOpts
+  );
 }
 
 // Export only the main function

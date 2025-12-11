@@ -9,3 +9,12 @@ config:
   mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
   mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
   mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_MIXED_CASE_HERE::aws::us-east-2
+  # Optional: Moose compute class resources configuration (JSON object)
+  # mooseComputeClassResources:
+  #   your-boreal-branch-id:
+  #     volumeMounts:
+  #       - name: ddrive-pvc
+  #         storageClassName: smb157
+  #         volumeName: smb157
+  #         storage: 100Gi
+  #         mountPath: /mnt/ddrive

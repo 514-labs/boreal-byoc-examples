@@ -1,7 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
-
 export interface MdsConfig {
   dockerConfigJson: pulumi.Output<string>;
   mdsEnvironment: string;
@@ -18,6 +17,7 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
+  mooseComputeClassResources?: Record<string, unknown>;
 }
 
 /**
@@ -27,7 +27,6 @@ export interface MdsConfig {
  * @returns MDS helm resource
  */
 export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomResourceOptions) {
-
   const mds = new k8s.helm.v3.Release(
     "mds",
     {
@@ -43,7 +42,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
           boreal: {
             webHostingUrl: args.borealWebhookUrl,
             webhookSecret: args.borealWebhookSecret,
-          }
+          },
         },
         deployment: {
           environment: "production",
@@ -54,6 +53,13 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             repository: args.mdsImageRepository,
             tag: args.mdsImageTag,
             pullPolicy: "Always",
+          },
+        },
+        computeClassConfig: {
+          data: {
+            "moose-compute-class-resources.json": JSON.stringify(
+              args.mooseComputeClassResources ?? {}
+            ),
           },
         },
         mooseCache: {
@@ -87,7 +93,8 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
               region: args.awsMdsRegion || "n/a",
               "access-key-id": args.awsMdsAccessKey || "n/a",
               "secret-access-key": args.awsMdsSecretAccessKey || "n/a",
-              "boreal-connection-hub-vpc-endpoint-service-name": args.awsBorealConnectionHub || "n/a",
+              "boreal-connection-hub-vpc-endpoint-service-name":
+                args.awsBorealConnectionHub || "n/a",
             },
           },
           redis: {
