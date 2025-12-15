@@ -4,7 +4,7 @@ import { createS3Bucket } from "./s3-bucket";
 import { createS3ConfigMap, generateS3StorageXML } from "./s3-config-map";
 import { ServiceAccountManager } from "./service-account";
 import { createMdsConfigSecret } from "./mds-secret";
-import { createClickHouseInstallation } from "./installation";
+import { createClickHouseInstallation, createClickHouseAliasService } from "./installation";
 import { createClickHouseKeeper, getKeeperConnectionString } from "./keeper";
 import { ClickhouseArgs, ClickhouseDeploymentResult } from "./types";
 
@@ -107,8 +107,9 @@ export async function deployClickhouseDatabase(
   const mdsConfigSecret = createMdsConfigSecret(password.result, "boreal-system", args.releaseOpts);
 
   // Deploy ClickHouse cluster via ClickHouseInstallation CRD
+  const installationName = "clickhouse-cluster";
   const clickhouseInstallation = createClickHouseInstallation({
-    name: "clickhouse-cluster",
+    name: installationName,
     namespace: namespace,
     shards: args.clickhouseShards,
     replicas: args.clickhouseReplicas,
@@ -132,8 +133,22 @@ export async function deployClickhouseDatabase(
     releaseOpts: keeper ? { ...args.releaseOpts, dependsOn: [keeper] } : args.releaseOpts,
   });
 
+  // Create an alias service named "clickhouse" for easier access
+  // The operator creates "clickhouse-clickhouse-cluster" but applications
+  // can use the simpler "clickhouse" service name
+  const clickhouseService = createClickHouseAliasService(
+    installationName,
+    "clickhouse",
+    namespace,
+    {
+      ...args.releaseOpts,
+      dependsOn: [clickhouseInstallation],
+    }
+  );
+
   return {
     clickhouseInstallation,
+    clickhouseService,
     keeper,
     password: password.result,
     mdsConfigSecret,

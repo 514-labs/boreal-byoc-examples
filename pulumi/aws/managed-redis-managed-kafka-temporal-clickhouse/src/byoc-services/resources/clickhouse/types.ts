@@ -30,6 +30,9 @@ export interface ClickhouseDeploymentResult {
   // ClickHouse cluster installation
   clickhouseInstallation: k8s.apiextensions.CustomResource;
 
+  // ClickHouse service (alias named "clickhouse" for easier access)
+  clickhouseService: k8s.core.v1.Service;
+
   // ClickHouse Keeper (for HA replication coordination)
   keeper?: k8s.apiextensions.CustomResource;
 
