@@ -3,7 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 
 /**
  * Creates the MDS (Moose Data Stack) configuration secret for ClickHouse
- * 
+ *
  * @param password - ClickHouse admin password
  * @param namespace - Target namespace for the secret
  * @param releaseOpts - Pulumi resource options
@@ -35,7 +35,7 @@ export function createMdsConfigSecret(
         "use-ssl": "false", // Set to "true" if TLS is enabled
 
         // Non-Cloud Service Host Configuration
-        "host": "clickhouse.byoc-clickhouse.svc.cluster.local",
+        host: "clickhouse.byoc-clickhouse.svc.cluster.local",
         "host-http-port": "8123", // HTTP interface
         "native-port": "9000", // Native TCP interface
         "admin-username": "default",

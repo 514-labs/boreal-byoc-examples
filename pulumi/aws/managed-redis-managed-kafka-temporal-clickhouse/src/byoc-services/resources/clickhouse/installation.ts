@@ -127,6 +127,11 @@ export function createClickHouseInstallation(
                   shardsCount: args.shards,
                   replicasCount: args.replicas,
                 },
+                // Enable inter-server authentication for distributed queries
+                settings: {
+                  "default/user": "default",
+                  "default/password": args.password,
+                },
               },
             ],
             // ZooKeeper/Keeper configuration (required for replication)
@@ -145,6 +150,10 @@ export function createClickHouseInstallation(
               "default/password": args.password,
               "default/networks/ip": ["0.0.0.0/0"],
               "default/profile": "default",
+            },
+            // Settings for inter-server communication
+            settings: {
+              "remote_servers/default/secret": args.password,
             },
             // Configuration files (e.g., S3 storage)
             ...(Object.keys(configFiles).length > 0 ? { files: configFiles } : {}),
@@ -228,29 +237,31 @@ export function createClickHouseInstallation(
 }
 
 /**
- * Creates a headless service for ClickHouse cluster discovery
+ * Creates an alias service for ClickHouse with a simpler name.
+ * The operator creates a service with the pattern clickhouse-{installation-name},
+ * but applications may prefer a simpler name like "clickhouse".
  */
-export function createClickHouseService(
-  name: string,
+export function createClickHouseAliasService(
+  installationName: string,
+  serviceName: string,
   namespace: string,
   releaseOpts: pulumi.CustomResourceOptions
 ): k8s.core.v1.Service {
   return new k8s.core.v1.Service(
-    `${name}-service`,
+    serviceName,
     {
       metadata: {
-        name: `${name}-service`,
+        name: serviceName,
         namespace: namespace,
         labels: {
           app: "clickhouse",
-          "clickhouse.altinity.com/chi": name,
+          "clickhouse.altinity.com/chi": installationName,
         },
       },
       spec: {
         type: "ClusterIP",
-        clusterIP: "None", // Headless service
         selector: {
-          "clickhouse.altinity.com/chi": name,
+          "clickhouse.altinity.com/chi": installationName,
         },
         ports: [
           { name: "http", port: 8123, targetPort: 8123 },
