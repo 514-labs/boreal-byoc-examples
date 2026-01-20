@@ -48,7 +48,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
           environment: "production",
           "mds-environment": args.mdsEnvironment,
           "cloud-provider": "aws",
-          replicaCount: 1,
+          replicaCount: 2,
           image: {
             repository: args.mdsImageRepository,
             tag: args.mdsImageTag,
