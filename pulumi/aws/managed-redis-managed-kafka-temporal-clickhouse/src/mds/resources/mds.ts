@@ -17,7 +17,7 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
-  mooseComputeClassResources?: Record<string, unknown>;
+  branchConfig?: Record<string, unknown>;
 }
 
 /**
@@ -55,13 +55,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             pullPolicy: "Always",
           },
         },
-        computeClassConfig: {
-          data: {
-            "moose-compute-class-resources.json": JSON.stringify(
-              args.mooseComputeClassResources ?? {}
-            ),
-          },
-        },
+        branchConfig: args.branchConfig ?? {},
         mooseCache: {
           enabled: false,
         },

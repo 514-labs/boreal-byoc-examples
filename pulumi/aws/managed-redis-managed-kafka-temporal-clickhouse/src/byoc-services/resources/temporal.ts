@@ -48,6 +48,49 @@ export async function installTemporal(args: TemporalArgs) {
               ],
             },
           },
+          // Enable Prometheus metrics endpoint
+          metrics: {
+            prometheus: {
+              timerType: "histogram",
+              listenAddress: "0.0.0.0:9090",
+            },
+          },
+          // Add Datadog autodiscovery annotation for history (where workflow metrics are)
+          history: {
+            podAnnotations: {
+              "ad.datadoghq.com/temporal-history.checks": JSON.stringify({
+                openmetrics: {
+                  init_config: {},
+                  instances: [
+                    {
+                      openmetrics_endpoint: "http://%%host%%:9090/metrics",
+                      namespace: "temporal",
+                      metrics: [
+                        // Workflow metrics
+                        "workflow_success",
+                        "workflow_tasks_completed",
+                        "workflow_backoff_timer",
+                        "workflow_task_attempt",
+                        // Error metrics
+                        "client_errors",
+                        // Latency metrics
+                        "service_latency",
+                        "persistence_latency",
+                        "task_schedule_to_start_latency",
+                        "activity_end_to_end_latency",
+                        // Resource/health metrics
+                        "pending_tasks",
+                        "cache_miss",
+                        "num_goroutines",
+                        "memory_heap",
+                      ],
+                      tags: ["service:temporal"],
+                    },
+                  ],
+                },
+              }),
+            },
+          },
           // Set resource requests and limits for all Temporal server components
           resources: {
             requests: {

@@ -35,6 +35,7 @@ export function createMdsConfigSecret(
         "use-ssl": "false", // Set to "true" if TLS is enabled
 
         // Non-Cloud Service Host Configuration
+        "cluster-name": "default",
         host: "clickhouse.byoc-clickhouse.svc.cluster.local",
         "host-http-port": "8123", // HTTP interface
         "native-port": "9000", // Native TCP interface
