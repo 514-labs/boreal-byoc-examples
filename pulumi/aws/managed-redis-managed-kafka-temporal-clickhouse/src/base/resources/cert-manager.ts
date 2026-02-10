@@ -15,7 +15,7 @@ export async function installCertManager(releaseOpts: pulumi.CustomResourceOptio
         repo: "https://charts.jetstack.io",
       },
       chart: "cert-manager",
-      version: "v1.17.1",
+      version: "v1.19.3",
       namespace: "cert-manager",
       createNamespace: true,
       values: {

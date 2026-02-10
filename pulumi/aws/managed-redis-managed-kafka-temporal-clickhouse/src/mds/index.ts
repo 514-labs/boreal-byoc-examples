@@ -30,6 +30,8 @@ async function main() {
   const borealWebhookUrl = config.require("borealWebhookUrl");
   const borealWebhookSecret = config.requireSecret("borealWebhookSecret");
 
+  const otelLogsEnabled = config.getBoolean("otelLogsEnabled");
+
   const pulumiAccessToken = config.requireSecret("pulumiAccessToken");
   const pulumiPassphrase = config.getSecret("pulumiPassphrase");
 
@@ -79,6 +81,7 @@ async function main() {
       mdsImageRepository,
       mdsChartVersion,
       mdsClusterPrefix,
+      otelLogsEnabled,
       borealWebhookUrl,
       borealWebhookSecret,
       pulumiAccessToken,

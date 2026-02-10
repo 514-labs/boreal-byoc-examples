@@ -18,6 +18,9 @@ export interface MdsConfig {
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
   branchConfig?: Record<string, unknown>;
+  // WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
+  // Only enable in environments where log data security is properly configured.
+  otelLogsEnabled?: boolean;
 }
 
 /**
@@ -45,7 +48,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
           },
           mds: {
             otelLogs: {
-              enabled: true,
+              enabled: args.otelLogsEnabled ?? false,
             },
           },
         },
