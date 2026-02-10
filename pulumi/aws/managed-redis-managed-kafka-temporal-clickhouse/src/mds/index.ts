@@ -42,10 +42,8 @@ async function main() {
   /// Redis Configuration - Required for Communication with Boreal Web Control Plane
   const redisProdDbUrl = config.require("redisProdDBURL");
 
-  /// Moose Compute Class Resources Configuration - Optional per-project overrides
-  const mooseComputeClassResources = config.getObject<Record<string, unknown>>(
-    "mooseComputeClassResources"
-  );
+  /// Branch Configuration - Optional per-branch overrides (computeClass, pod, service, customDomains)
+  const branchConfig = config.getObject<Record<string, unknown>>("branchConfig");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -90,7 +88,7 @@ async function main() {
       awsMdsRegion: awsRegion,
       awsBorealConnectionHub,
       redisProdDbUrl,
-      mooseComputeClassResources,
+      branchConfig,
     },
     releaseOpts
   );
