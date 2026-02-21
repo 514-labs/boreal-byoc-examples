@@ -48,7 +48,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
           },
           mds: {
             otelLogs: {
-              enabled: args.otelLogsEnabled ?? false,
+              enabled: args.otelLogsEnabled,
             },
           },
         },

@@ -21,7 +21,7 @@ export async function deployOtelCollectorOperator(
         repo: "https://open-telemetry.github.io/opentelemetry-helm-charts",
       },
       chart: "opentelemetry-operator",
-      version: "0.98.0",
+      version: "0.105.1",
       namespace: namespaceName,
       values: {
         manager: {
