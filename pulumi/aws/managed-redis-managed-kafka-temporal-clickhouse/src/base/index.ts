@@ -7,6 +7,8 @@ import { installTailscaleOperator } from "./resources/tailscale";
 import { createGp3StorageClass } from "./resources/storage-class-gp3";
 import { getKubeconfig } from "./utils/kubeconfig";
 import { installGatewayApiCrds } from "./resources/gateway-crds";
+import { installCertManager } from "./resources/cert-manager";
+import { deployOtelCollectorOperator } from "./resources/otel";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -117,6 +119,10 @@ async function main() {
     createTailscaleSubnetRouter,
     releaseOpts
   );
+
+  // Install cert-manager and OpenTelemetry operator
+  const certManager = await installCertManager(releaseOpts);
+  await deployOtelCollectorOperator("boreal-system", releaseOpts, certManager);
 
   // Create gp3 storage class for better performance with EBS volumes
   const gp3StorageClass = await createGp3StorageClass(eksCluster, k8sProvider);

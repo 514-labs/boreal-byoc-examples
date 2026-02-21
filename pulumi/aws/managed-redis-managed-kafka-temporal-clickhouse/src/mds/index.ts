@@ -30,6 +30,8 @@ async function main() {
   const borealWebhookUrl = config.require("borealWebhookUrl");
   const borealWebhookSecret = config.requireSecret("borealWebhookSecret");
 
+  const otelLogsEnabled = config.getBoolean("otelLogsEnabled");
+
   const pulumiAccessToken = config.requireSecret("pulumiAccessToken");
   const pulumiPassphrase = config.getSecret("pulumiPassphrase");
 
@@ -42,10 +44,8 @@ async function main() {
   /// Redis Configuration - Required for Communication with Boreal Web Control Plane
   const redisProdDbUrl = config.require("redisProdDBURL");
 
-  /// Moose Compute Class Resources Configuration - Optional per-project overrides
-  const mooseComputeClassResources = config.getObject<Record<string, unknown>>(
-    "mooseComputeClassResources"
-  );
+  /// Branch Configuration - Optional per-branch overrides (computeClass, pod, service, customDomains)
+  const branchConfig = config.getObject<Record<string, unknown>>("branchConfig");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -81,6 +81,7 @@ async function main() {
       mdsImageRepository,
       mdsChartVersion,
       mdsClusterPrefix,
+      otelLogsEnabled,
       borealWebhookUrl,
       borealWebhookSecret,
       pulumiAccessToken,
@@ -90,7 +91,7 @@ async function main() {
       awsMdsRegion: awsRegion,
       awsBorealConnectionHub,
       redisProdDbUrl,
-      mooseComputeClassResources,
+      branchConfig,
     },
     releaseOpts
   );

@@ -17,7 +17,10 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
-  mooseComputeClassResources?: Record<string, unknown>;
+  branchConfig?: Record<string, unknown>;
+  // WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
+  // Only enable in environments where log data security is properly configured.
+  otelLogsEnabled?: boolean;
 }
 
 /**
@@ -43,6 +46,11 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             webHostingUrl: args.borealWebhookUrl,
             webhookSecret: args.borealWebhookSecret,
           },
+          mds: {
+            otelLogs: {
+              enabled: args.otelLogsEnabled,
+            },
+          },
         },
         deployment: {
           environment: "production",
@@ -55,13 +63,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             pullPolicy: "Always",
           },
         },
-        computeClassConfig: {
-          data: {
-            "moose-compute-class-resources.json": JSON.stringify(
-              args.mooseComputeClassResources ?? {}
-            ),
-          },
-        },
+        branchConfig: args.branchConfig ?? {},
         mooseCache: {
           enabled: false,
         },

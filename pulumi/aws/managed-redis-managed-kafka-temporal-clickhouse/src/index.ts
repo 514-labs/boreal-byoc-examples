@@ -53,7 +53,6 @@ const executeStack = async () => {
     return {
       vpc: outputs.vpc,
       privateSubnets: outputs.privateSubnets,
-      eksCluster: outputs.eksCluster,
       kubeconfig: outputs.eksCluster?.kubeconfig,
       eksSecurityGroupId: outputs.eksCluster?.core?.cluster?.vpcConfig?.clusterSecurityGroupId,
       eksClusterName: outputs.eksCluster?.core?.cluster?.name,

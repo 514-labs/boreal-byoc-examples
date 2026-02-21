@@ -3,6 +3,9 @@ environment:
   - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
 
 config:
+  # WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
+  # Only enable in environments where log data security is properly configured.
+  otelLogsEnabled: false
   mdsChartVersion: 0.7.6
   # IMPORTANT: MDS requires the org ID in MIXED CASE format (not lowercase)
   mdsEnvironment: byoc-YOUR_ORG_ID_MIXED_CASE_HERE
