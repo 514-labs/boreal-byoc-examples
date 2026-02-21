@@ -18,9 +18,9 @@ config:
   kafkaInstanceType: kafka.t3.small
 
   # Temporal Configuration
-  temporalReplicas: 1
-  temporalCassandraReplicas: 1
-  temporalElasticsearchReplicas: 1
+  temporalReplicas: 2
+  temporalCassandraReplicas: 2
+  temporalElasticsearchReplicas: 2
   temporalNamespaceRetention: 30d
   # Temporal Resource Allocation (optional, defaults shown)
   temporalCassandraMemory: 2Gi
