@@ -151,7 +151,7 @@ export async function installTemporal(args: TemporalArgs) {
         namespace: "byoc-temporal",
       },
       spec: {
-        maxUnavailable: 1,
+        maxUnavailable: 2,
         selector: {
           matchLabels: {
             app: "temporal-cassandra",
