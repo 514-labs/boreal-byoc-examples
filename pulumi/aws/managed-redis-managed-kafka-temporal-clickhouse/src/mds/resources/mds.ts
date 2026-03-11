@@ -104,6 +104,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             data: {
               "connection-string": args.redisProdDbUrl,
               "mds-cluster-prefix": args.mdsClusterPrefix,
+              "mds-request-channel": "mds-request",
             },
           },
           /// These secrets were created in the byoc-services stack
