@@ -26,7 +26,7 @@ export async function installTailscaleOperator(
         repo: "https://pkgs.tailscale.com/helmcharts",
       },
       chart: "tailscale-operator",
-      version: "1.88.4",
+      version: "1.94.2",
       namespace: "tailscale",
       createNamespace: true,
       values: {
