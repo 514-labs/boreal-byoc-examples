@@ -4,7 +4,8 @@ import * as aws from "@pulumi/aws";
 import { createElastiCacheRedis } from "./resources/redis";
 import { createMSKCluster } from "./resources/kafka";
 import { installTemporal } from "./resources/temporal";
-import { installClickhouse } from "./resources/clickhouse";
+import { installClickhouseOperator } from "./resources/clickhouse-operator";
+import { deployClickhouseDatabase } from "./resources/clickhouse";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -39,21 +40,22 @@ async function main() {
   const temporalElasticsearchReplicas = parseInt(config.require("temporalElasticsearchReplicas"));
   const temporalNamespaceRetention = parseInt(config.require("temporalNamespaceRetention"));
   const temporalCassandraStorageSize = config.get("temporalCassandraStorageSize") ?? "50Gi";
-  const temporalElasticsearchStorageSize = config.get("temporalElasticsearchStorageSize") ?? "100Gi";
+  const temporalElasticsearchStorageSize =
+    config.get("temporalElasticsearchStorageSize") ?? "100Gi";
+  const temporalCassandraMemory = config.get("temporalCassandraMemory") ?? "2Gi";
+  const temporalCassandraCpu = config.get("temporalCassandraCpu") ?? "1000m";
+  const temporalServerMemory = config.get("temporalServerMemory") ?? "512Mi";
+  const temporalServerCpu = config.get("temporalServerCpu") ?? "500m";
 
   const clickhouseShards = parseInt(config.require("clickhouseShards"));
   const clickhouseStorageSize = config.require("clickhouseStorageSize");
   const clickhouseReplicas = parseInt(config.require("clickhouseReplicas"));
   const clickhouseRequestedCpu = config.require("clickhouseRequestedCpu");
+  const clickhouseLimitCpu = config.get("clickhouseLimitCpu") || clickhouseRequestedCpu;
   const clickhouseRequestedMemory = config.require("clickhouseRequestedMemory");
-  // Optional tuning values
-  const s3CacheSizeGB = config.getNumber("clickhouseS3CacheSizeGB") ?? 10; // default 10 GB
-  const s3LifecycleGlacierIrDays = config.getNumber("clickhouseS3GlacierIrDays") ?? 365; // default 365
-  const s3LifecycleNoncurrentExpireDays = config.getNumber("clickhouseS3NoncurrentExpireDays") ?? 400; // must be > transition
-  const s3HotMaxPartSizeGB = config.getNumber("clickhouseHotMaxPartSizeGB") ?? 1; // default 1 GB
-  const s3HotColdMoveFactor = config.getNumber("clickhouseHotColdMoveFactor") ?? 0.2; // default 0.2
+  const clickhouseLimitMemory = config.get("clickhouseLimitMemory") || clickhouseRequestedMemory;
 
-  // Get org ID for bucket naming
+  // Get org ID for tags
   const orgId = config.require("orgId");
 
   // Get common tags from configuration and add the dynamic Project tag
@@ -64,6 +66,15 @@ async function main() {
     Stack: stackName,
     OrgId: orgId,
   };
+
+  // Generate a unique bucket name suffix (first 8 chars of org ID hash)
+  // S3 bucket names must be globally unique and 3-63 characters
+  const crypto = require("crypto");
+  const uniqueSuffix = crypto
+    .createHash("sha256")
+    .update(`${orgId}-${projectName}-${stackName}`)
+    .digest("hex")
+    .substring(0, 8);
 
   // Reference the base stack to get the EKS cluster and VPC resources
   const baseStack = new pulumi.StackReference("base", {
@@ -146,42 +157,48 @@ async function main() {
           namespaceRetention: temporalNamespaceRetention,
           cassandraStorageSize: temporalCassandraStorageSize,
           elasticsearchStorageSize: temporalElasticsearchStorageSize,
+          cassandraMemory: temporalCassandraMemory,
+          cassandraCpu: temporalCassandraCpu,
+          serverMemory: temporalServerMemory,
+          serverCpu: temporalServerCpu,
           releaseOpts: releaseOpts,
         });
 
-        // Generate S3 bucket name using org ID
-        // S3 bucket names must be 3-63 chars, lowercase letters, numbers, and hyphens only
-        // Using org ID ensures each BYOC deployment has a unique bucket aligned with the organization
-        const sanitizedOrgId = orgId.toLowerCase().replace(/_/g, "-"); // Convert underscores to hyphens
+        // Install ClickHouse Operator (cluster-scoped)
+        const clickhouseOperator = installClickhouseOperator({
+          namespace: "clickhouse-operator",
+          chartVersion: undefined, // Use latest version
+          watchNamespaces: ["byoc-clickhouse"], // Watch the namespace where ClickHouse will be deployed
+          releaseOpts: releaseOpts,
+        });
 
-        // Ensure total bucket name length is within S3's 63 character limit
-        // "boreal-ch-" = 10 chars, org IDs are typically ~30 chars, total ~40 chars (well within limit)
-        const bucketName = `boreal-ch-${sanitizedOrgId}`;
-
-        await installClickhouse({
+        // Deploy ClickHouse Database (depends on operator)
+        await deployClickhouseDatabase({
           clickhouseShards,
           clickhouseReplicas,
-          clickhouseStorageSize, // Local storage for hot data and metadata
+          clickhouseStorageSize,
           requestedMemory: clickhouseRequestedMemory,
           requestedCpu: clickhouseRequestedCpu,
+          releaseOpts: {
+            ...releaseOpts,
+            dependsOn: [clickhouseOperator.helmRelease],
+          },
+          tags: commonTags,
+          // Optional: Configure S3 storage
           s3Config: {
-            bucketName: bucketName,
+            // S3 bucket names must be globally unique and 3-63 chars
+            // Format: <cluster>-ch-<unique-suffix>
+            bucketName: pulumi.interpolate`${eksClusterName}-ch-${uniqueSuffix}`,
             region: "us-east-2",
             useIAMRole: true,
-            cacheSizeGB: s3CacheSizeGB,
-            hotMaxPartSizeGB: s3HotMaxPartSizeGB,
-            hotColdMoveFactor: s3HotColdMoveFactor,
-          },
-          s3Lifecycle: {
-            glacierIrTransitionDays: s3LifecycleGlacierIrDays,
-            noncurrentExpireDays: s3LifecycleNoncurrentExpireDays,
+            cacheSizeGB: 20,
+            hotMaxPartSizeGB: 2,
+            hotColdMoveFactor: 0.2,
           },
           eksClusterInfo: {
             clusterName: eksClusterName,
-            oidcProviderArn: eksOidcProviderArn
+            oidcProviderArn: eksOidcProviderArn,
           },
-          tags: commonTags,
-          releaseOpts: releaseOpts,
         });
       }
     );

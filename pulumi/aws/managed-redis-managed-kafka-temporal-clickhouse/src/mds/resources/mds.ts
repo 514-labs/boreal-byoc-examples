@@ -17,6 +17,10 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
+  branchConfig?: Record<string, unknown>;
+  // WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
+  // Only enable in environments where log data security is properly configured.
+  otelLogsEnabled?: boolean;
 }
 
 /**
@@ -66,18 +70,24 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             webHostingUrl: args.borealWebhookUrl,
             webhookSecret: args.borealWebhookSecret,
           },
+          mds: {
+            otelLogs: {
+              enabled: args.otelLogsEnabled,
+            },
+          },
         },
         deployment: {
           environment: "production",
           "mds-environment": args.mdsEnvironment,
           "cloud-provider": "aws",
-          replicaCount: 1,
+          replicaCount: 2,
           image: {
             repository: args.mdsImageRepository,
             tag: args.mdsImageTag,
             pullPolicy: "Always",
           },
         },
+        branchConfig: args.branchConfig ?? {},
         mooseCache: {
           enabled: false,
         },
@@ -118,6 +128,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             data: {
               "connection-string": args.redisProdDbUrl,
               "mds-cluster-prefix": args.mdsClusterPrefix,
+              "mds-request-channel": "mds-request",
             },
           },
           /// These secrets were created in the byoc-services stack

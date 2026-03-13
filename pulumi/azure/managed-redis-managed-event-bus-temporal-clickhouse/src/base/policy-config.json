@@ -1,0 +1,129 @@
+{
+  "parameters": {
+    "allowedContainerImagesRegex": {
+      "value": ".*"
+    },
+    "allowedGroups": {
+      "value": ["system:node", "system:serviceaccounts:kube-system"]
+    },
+    "allowedUsers": {
+      "value": [
+        "nodeclient",
+        "system:serviceaccount:kube-system:aci-connector-linux",
+        "system:serviceaccount:kube-system:node-controller",
+        "acsService",
+        "aksService",
+        "system:serviceaccount:kube-system:cloud-node-manager",
+        "system:serviceaccount:kube-system:cilium-operator"
+      ]
+    },
+    "cpuLimit": {
+      "value": "32"
+    },
+    "effect": {
+      "value": "Disabled"
+    },
+    "effectForMutationPolicies": {
+      "value": "Disabled"
+    },
+    "excludedContainers": {
+      "value": []
+    },
+    "excludedImages": {
+      "value": [
+        "mcr.microsoft.com/oss/kubernetes/pause*",
+        "mcr.microsoft.com/oss/v2/kubernetes/pause*"
+      ]
+    },
+    "excludedNamespaces": {
+      "value": ["kube-system", "calico-system", "tigera-system", "gatekeeper-system"]
+    },
+    "labels": {
+      "value": ["kubernetes.azure.com"]
+    },
+    "memoryLimit": {
+      "value": "64Gi"
+    },
+    "messages": {
+      "value": {
+        "k8sazurev1maxunavailablepods": "spec.maxUnavailable in PodDisruptionBudget resource has been set to 1. This ensures that the application is available during a disruption",
+        "k8sazurev1readonlyrootfilesysteminitcontainers": "spec.containers[name:*].securityContext.readOnlyRootFilesystem in the Pod spec in init containers has been set to true since it was not set",
+        "k8sazurev1reservedsystempooltaints": "The critical addons only taint has been removed from the user nodepool. AKS uses the CriticalAddonsOnly taint to keep customer pods away from the system pool. It ensures a clear separation between AKS components and customer pods, and prevents customer pods from being evicted if they do not tolerate the CriticalAddonsOnly taint.",
+        "k8sazurev1resourcelimitscpu": "CPU limits have been added to your pod since those were not set",
+        "k8sazurev1resourcelimitsmemory": "Memory limits have been added to your pod since those were not set"
+      }
+    },
+    "requiredProbes": {
+      "value": []
+    },
+    "reservedTaints": {
+      "value": ["CriticalAddonsOnly"]
+    },
+    "warn": {
+      "value": true
+    }
+  },
+  "overrides": [
+    {
+      "kind": "policyEffect",
+      "selectors": [
+        {
+          "in": [
+            "imagesDoNotUseLatest",
+            "ensureCsiDriverStorageClass",
+            "restrictedLabelsInKubernetesCluster",
+            "restrictedNodeEditsInKubernetesCluster",
+            "restrictedTaintsInKubernetesCluster"
+          ],
+          "kind": "policyDefinitionReferenceId"
+        }
+      ],
+      "value": "Deny"
+    },
+    {
+      "kind": "policyEffect",
+      "selectors": [
+        {
+          "in": [
+            "memoryAndCPULimitsInKubernetesCluster",
+            "podEnforceAntiaffinityInKubernetesCluster",
+            "antiAffinityRules",
+            "containerLimits"
+          ],
+          "kind": "policyDefinitionReferenceId"
+        }
+      ],
+      "value": "Disabled"
+    },
+    {
+      "kind": "policyEffect",
+      "selectors": [
+        {
+          "in": ["mutateMaxUnavailablePods", "mutateReservedSystemPoolTaints"],
+          "kind": "policyDefinitionReferenceId"
+        }
+      ],
+      "value": "Mutate"
+    },
+    {
+      "kind": "policyEffect",
+      "selectors": [
+        {
+          "in": ["resourceCPULimits", "resourceMemoryLimits"],
+          "kind": "policyDefinitionReferenceId"
+        }
+      ],
+      "value": "Disabled"
+    },
+    {
+      "kind": "policyEffect",
+      "selectors": [
+        {
+          "in": ["printMutationsAnnotations"],
+          "kind": "policyDefinitionReferenceId"
+        }
+      ],
+      "value": "Audit"
+    }
+  ]
+}

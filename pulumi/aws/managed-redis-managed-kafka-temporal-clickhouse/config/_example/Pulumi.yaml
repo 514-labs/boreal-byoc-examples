@@ -1,0 +1,24 @@
+name: boreal-cust-byoc-YOUR_ORG_ID_LOWERCASE_HERE
+runtime: nodejs
+description: BYOC - Example Template
+
+config:
+  # This overrides the project-level aws:region if it was set
+  aws:region: us-east-2
+  aws:profile: YOUR_AWS_PROFILE_HERE
+  awsProfile: YOUR_AWS_PROFILE_HERE
+
+  # Common tags to be applied across all stacks
+  tagCloud: aws
+  tagEnvironment: byoc-testing
+
+  # Boreal Org ID - Replace with your org ID (lowercase format)
+  # MDS configs require a different mixed-case format - see Pulumi.mds.yaml
+  orgId: YOUR_ORG_ID_LOWERCASE_HERE
+
+  # VPC Configuration
+  vpcCidrBlock: 10.192.0.0/16
+
+  datadogClusterName: boreal-YOUR_ORG_ID_LOWERCASE_HERE
+
+  # Project tag will be dynamically added using pulumi.getProject()

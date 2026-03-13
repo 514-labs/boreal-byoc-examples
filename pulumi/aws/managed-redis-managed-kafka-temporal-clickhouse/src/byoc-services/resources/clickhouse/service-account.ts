@@ -13,6 +13,7 @@ export interface ServiceAccountConfig {
   s3Config?: ClickhouseS3Config;
   eksClusterInfo?: EksClusterInfo;
   s3BucketArn?: pulumi.Input<string>;
+  kmsKeyArn?: pulumi.Input<string>;
   releaseOpts: pulumi.CustomResourceOptions;
 }
 
@@ -36,7 +37,7 @@ export class ServiceAccountManager {
 
   /**
    * Creates the appropriate service account based on the configuration
-   * 
+   *
    * @param config - Service account configuration
    * @returns Service account and optional IAM role
    */
@@ -57,10 +58,13 @@ export class ServiceAccountManager {
       const { clusterName, oidcProviderArn } = config.eksClusterInfo;
 
       // Create new IAM role and service account
-      const iamRole = this.createIamRole(config.s3Config, config.eksClusterInfo, config.s3BucketArn);
-      return this.createServiceAccountWithRole(
-        iamRole
+      const iamRole = this.createIamRole(
+        config.s3Config,
+        config.eksClusterInfo,
+        config.s3BucketArn,
+        config.kmsKeyArn
       );
+      return this.createServiceAccountWithRole(iamRole);
     }
 
     // Using access keys - just create a basic service account
@@ -70,11 +74,17 @@ export class ServiceAccountManager {
     };
   }
 
-  private createIamRole(s3Config: ClickhouseS3Config, eksClusterInfo: { clusterName: string; oidcProviderArn: string }, s3BucketArn?: pulumi.Input<string>): aws.iam.Role {
+  private createIamRole(
+    s3Config: ClickhouseS3Config,
+    eksClusterInfo: { clusterName: string; oidcProviderArn: string },
+    s3BucketArn?: pulumi.Input<string>,
+    kmsKeyArn?: pulumi.Input<string>
+  ): aws.iam.Role {
     const { clusterName, oidcProviderArn } = eksClusterInfo;
     // Extract the OIDC provider URL from the ARN (everything after oidc-provider/)
     const oidcProviderUrl = oidcProviderArn.split("oidc-provider/")[1];
     console.log(`oidcProviderUrl: ${oidcProviderUrl}`);
+    // Don't pass releaseOpts to AWS resources (contains K8s provider)
     const iamRole = new aws.iam.Role("clickhouse-s3-role", {
       name: pulumi.interpolate`${clusterName}-clickhouse-s3-role`,
       assumeRolePolicy: pulumi.interpolate`{
@@ -94,76 +104,98 @@ export class ServiceAccountManager {
         }]
       }`,
       tags: {
-        "Purpose": "ClickHouse S3 Access",
-        "ManagedBy": "Pulumi",
+        Purpose: "ClickHouse S3 Access",
+        ManagedBy: "Pulumi",
       },
-    });
+    }); // No provider options - use default AWS provider
 
     const bucketArn = s3BucketArn || `arn:aws:s3:::${s3Config.bucketName}`;
-    const s3Policy = new aws.iam.RolePolicy("clickhouse-s3-policy", {
-      role: iamRole.name,
-      policy: pulumi.interpolate`{
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:GetObject",
-              "s3:PutObject",
-              "s3:DeleteObject",
-              "s3:ListBucket",
-              "s3:GetObjectVersion",
-              "s3:DeleteObjectVersion",
-              "s3:GetBucketLocation"
-            ],
-            "Resource": [
-              "${bucketArn}/*",
-              "${bucketArn}"
-            ]
-          },
-          {
-            "Effect": "Allow",
-            "Action": [
-              "s3:ListAllMyBuckets"
-            ],
-            "Resource": "*"
-          }
-        ]
-      }`,
-    }, { ...this.releaseOpts, parent: iamRole });
+
+    // Build policy statements - S3 is always included, KMS is conditional
+    const policyStatements = pulumi.all([bucketArn, kmsKeyArn || ""]).apply(([bucket, kmsKey]) => {
+      const statements: any[] = [
+        {
+          Effect: "Allow",
+          Action: [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket",
+            "s3:GetObjectVersion",
+            "s3:DeleteObjectVersion",
+            "s3:GetBucketLocation",
+          ],
+          Resource: [`${bucket}/*`, `${bucket}`],
+        },
+        {
+          Effect: "Allow",
+          Action: ["s3:ListAllMyBuckets"],
+          Resource: "*",
+        },
+      ];
+
+      // Add KMS permissions if KMS key is provided
+      if (kmsKey) {
+        statements.push({
+          Effect: "Allow",
+          Action: ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey", "kms:DescribeKey"],
+          Resource: kmsKey,
+        });
+      }
+
+      return JSON.stringify({
+        Version: "2012-10-17",
+        Statement: statements,
+      });
+    });
+
+    const s3Policy = new aws.iam.RolePolicy(
+      "clickhouse-s3-policy",
+      {
+        role: iamRole.name,
+        policy: policyStatements,
+      },
+      { parent: iamRole }
+    ); // Only use parent relationship, not provider
 
     return iamRole;
-  } 
+  }
 
   /**
    * Creates a basic service account without IAM role
    */
   private createBasicServiceAccount(): k8s.core.v1.ServiceAccount {
-    return new k8s.core.v1.ServiceAccount("clickhouse-sa", {
-      metadata: {
-        name: "clickhouse",
-        namespace: this.namespace,
+    return new k8s.core.v1.ServiceAccount(
+      "clickhouse-sa",
+      {
+        metadata: {
+          name: "clickhouse",
+          namespace: this.namespace,
+        },
       },
-    }, this.releaseOpts);
+      this.releaseOpts
+    );
   }
 
   /**
    * Creates a new IAM role and service account for S3 access
    */
-  private createServiceAccountWithRole(
-    iamRole: aws.iam.Role,
-  ): ServiceAccountResult {
+  private createServiceAccountWithRole(iamRole: aws.iam.Role): ServiceAccountResult {
     // Create the Kubernetes service account with IAM role annotation
-    const serviceAccount = new k8s.core.v1.ServiceAccount("clickhouse-sa", {
-      metadata: {
-        name: "clickhouse",
-        namespace: this.namespace,
-        annotations: {
-          "eks.amazonaws.com/role-arn": iamRole.arn,
-          "eks.amazonaws.com/sts-regional-endpoints": "true",
+    const serviceAccount = new k8s.core.v1.ServiceAccount(
+      "clickhouse-sa",
+      {
+        metadata: {
+          name: "clickhouse",
+          namespace: this.namespace,
+          annotations: {
+            "eks.amazonaws.com/role-arn": iamRole.arn,
+            "eks.amazonaws.com/sts-regional-endpoints": "true",
+          },
         },
       },
-    }, this.releaseOpts);
+      this.releaseOpts
+    );
 
     return { serviceAccount, iamRole };
   }

@@ -1,5 +1,7 @@
 environment:
-  - default/byoc-org_30fev8cygBzNRW7Ta7P34XE8ch3
+  # Note: Casing doesn't matter for environment values - using mixed case for consistency
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
 config:
   # AWS Configuration
   awsProfile: boreal2
@@ -18,5 +20,7 @@ config:
   # tailscaleAuthKey is pulled from the ESC environment
 
   # Tailscale Configuration
+  tailscaleOperatorHostname: aws-YOUR_ORG_NAME_HERE-tailscale-operator-us-east-2
+  createTailscaleSubnetRouter: false # Set to true to advertise VPC CIDR to Tailscale network
   # tailscaleClientId: ""  # pulled from the ESC environment
   # tailscaleClientSecret: ""  # pulled from the ESC environment

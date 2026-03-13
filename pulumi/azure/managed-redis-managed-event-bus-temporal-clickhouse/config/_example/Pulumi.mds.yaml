@@ -1,0 +1,17 @@
+environment:
+  # IMPORTANT: Use mixed-case orgId format across the board for Azure
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
+config:
+  tagCloud: azure
+  tagEnvironment: byoc-testing
+
+  # MDS Configuration
+  # IMPORTANT: Azure uses the same mixed-case orgId format for MDS as all other configs
+  # Azure pattern: Mixed-case orgId everywhere (e.g., "org_33nWBYhligmqe8vaOutB3mzWid4")
+  # Unlike AWS, Azure doesn't require a different case format for MDS
+  mdsChartVersion: 0.7.6
+  mdsEnvironment: byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+  mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_MIXED_CASE_HERE::azure::centralus

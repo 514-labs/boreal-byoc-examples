@@ -1,105 +1,161 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as k8s from "@pulumi/kubernetes";
-import * as aws from "@pulumi/aws";
 import * as random from "@pulumi/random";
-import { ClickhouseArgs, ClickhouseDeploymentResult } from "./types";
-import { createS3ConfigMap } from "./s3-config-map";
+import { createS3Bucket } from "./s3-bucket";
+import { createS3ConfigMap, generateS3StorageXML } from "./s3-config-map";
 import { ServiceAccountManager } from "./service-account";
 import { createMdsConfigSecret } from "./mds-secret";
-import { createHelmRelease } from "./helm-release";
-import { createS3Bucket } from "./s3-bucket";
+import { createClickHouseInstallation, createClickHouseAliasService } from "./installation";
+import { createClickHouseKeeper, getKeeperConnectionString } from "./keeper";
+import { ClickhouseArgs, ClickhouseDeploymentResult } from "./types";
 
 /**
- * Installs ClickHouse with optional S3 storage support
+ * Deploys a ClickHouse database cluster and supporting infrastructure.
  *
- * When S3 is configured, ClickHouse can use either:
- * 1. IAM roles (recommended for EKS) - Uses IRSA for secure, temporary credentials
- * 2. Access keys - Traditional method, less secure
+ * This function:
+ * 1. Creates ClickHouse Keeper for coordination (if replicas > 1)
+ * 2. Creates S3 bucket for data storage (if S3 config provided)
+ * 3. Creates IAM role and service account for S3 access (if using IAM role)
+ * 4. Creates ConfigMap with S3 storage configuration
+ * 5. Creates MDS secret with ClickHouse credentials
+ * 6. Deploys ClickHouse cluster via ClickHouseInstallation CRD
  *
- * @param args - ClickHouse deployment configuration
- * @returns Deployment result with all created resources
+ * Note: The Altinity ClickHouse Operator must be installed first.
+ *
+ * @param args - ClickHouse deployment arguments
+ * @returns Deployment result with ClickHouse cluster and infrastructure resources
  */
-export async function installClickhouse(args: ClickhouseArgs): Promise<ClickhouseDeploymentResult> {
+export async function deployClickhouseDatabase(
+  args: ClickhouseArgs
+): Promise<ClickhouseDeploymentResult> {
   const namespace = "byoc-clickhouse";
 
-  // Generate secure password
+  // Generate a password for ClickHouse
   const password = new random.RandomPassword("clickhouse-password", {
     length: 16,
     special: false,
   });
 
-  const dependencies: pulumi.Resource[] = [];
-  let s3ConfigMap: k8s.core.v1.ConfigMap | undefined;
-  let serviceAccount: k8s.core.v1.ServiceAccount | undefined;
-  let iamRole: aws.iam.Role | undefined;
-  let s3Bucket: aws.s3.Bucket | undefined;
+  // Deploy ClickHouse Keeper if replicas > 1 (required for replication)
+  let keeper;
+  let keeperConnectionString;
+  if (args.clickhouseReplicas > 1) {
+    // Use 3 Keeper nodes for HA (must be odd number)
+    const keeperReplicas = 3;
+    keeper = createClickHouseKeeper({
+      name: "clickhouse-keeper",
+      namespace: namespace,
+      replicas: keeperReplicas,
+      storageSize: "10Gi",
+      storageClass: "gp3",
+      resources: {
+        requests: {
+          cpu: "100m",
+          memory: "256Mi",
+        },
+        limits: {
+          cpu: "500m",
+          memory: "512Mi",
+        },
+      },
+      releaseOpts: args.releaseOpts,
+    });
 
-  // Create S3 configuration if provided
-  if (args.s3Config) {
-    // Create the S3 bucket
-    s3Bucket = createS3Bucket(
-      args.s3Config.bucketName,
-      args.tags || {},
-      {},
-      {
-        glacierIrTransitionDays: args.s3Lifecycle?.glacierIrTransitionDays,
-        noncurrentExpireDays: args.s3Lifecycle?.noncurrentExpireDays,
-      }
+    keeperConnectionString = getKeeperConnectionString(
+      "clickhouse-keeper",
+      namespace,
+      keeperReplicas
     );
-    dependencies.push(s3Bucket);
-
-    s3ConfigMap = createS3ConfigMap(args.s3Config, namespace, {});
-    dependencies.push(s3ConfigMap);
   }
 
-  // Create service account using the ServiceAccountManager
-  const serviceAccountManager = new ServiceAccountManager(namespace, {});
+  // Create S3 bucket if S3 configuration is provided
+  // Note: Don't pass releaseOpts here as it contains K8s provider
+  let s3BucketResult;
+  if (args.s3Config) {
+    s3BucketResult = createS3Bucket(
+      args.s3Config.bucketName,
+      args.tags || {},
+      {}, // Empty options - let AWS provider use default
+      {
+        ...args.s3Lifecycle,
+        useKmsEncryption: true, // Enable KMS
+      }
+    );
+  }
+
+  // Create service account (with or without IAM role)
+  const serviceAccountManager = new ServiceAccountManager(namespace, args.releaseOpts);
+
   const serviceAccountResult = serviceAccountManager.create({
-    namespace,
+    namespace: namespace,
     s3Config: args.s3Config,
     eksClusterInfo: args.eksClusterInfo,
-    s3BucketArn: s3Bucket?.arn,
+    s3BucketArn: s3BucketResult?.bucket.arn,
+    kmsKeyArn: s3BucketResult?.kmsKey?.arn,
     releaseOpts: args.releaseOpts,
   });
 
-  serviceAccount = serviceAccountResult.serviceAccount;
-  iamRole = serviceAccountResult.iamRole;
-  
-  // Add created resources to dependencies
-  dependencies.push(serviceAccount);
-  if (iamRole) {
-    dependencies.push(iamRole);
+  // Generate S3 storage XML if S3 configuration is provided
+  // We keep the ConfigMap for reference, but the actual config is inlined in the CHI
+  let s3ConfigMap;
+  let s3StorageXML;
+  if (args.s3Config) {
+    s3ConfigMap = createS3ConfigMap(args.s3Config, namespace, args.releaseOpts);
+    s3StorageXML = generateS3StorageXML(args.s3Config);
   }
 
-  // Create MDS configuration secret
-  const mdsConfigSecret = createMdsConfigSecret(
-    password.result,
-    "boreal-system", // Target namespace for MDS
-    args.releaseOpts
-  );
+  // Create MDS config secret
+  const mdsConfigSecret = createMdsConfigSecret(password.result, "boreal-system", args.releaseOpts);
 
-  // Create Helm release
-  const helmRelease = createHelmRelease({
-    args,
+  // Deploy ClickHouse cluster via ClickHouseInstallation CRD
+  const installationName = "clickhouse-cluster";
+  const clickhouseInstallation = createClickHouseInstallation({
+    name: installationName,
+    namespace: namespace,
+    shards: args.clickhouseShards,
+    replicas: args.clickhouseReplicas,
+    storageSize: args.clickhouseStorageSize,
+    storageClass: "gp3",
+    // Use latest LTS version. Check https://hub.docker.com/r/clickhouse/clickhouse-server/tags
+    // LTS versions: 24.3, 24.8 (recommended for production)
+    // Latest: 24.11+
+    image: args.clickhouseImage || "clickhouse/clickhouse-server:25.8",
+    resources: {
+      requests: {
+        cpu: args.requestedCpu,
+        memory: args.requestedMemory,
+      },
+    },
+    serviceAccountName: "clickhouse",
+    enableS3: !!args.s3Config,
+    s3StorageXML: s3StorageXML,
     password: password.result,
-    namespace,
-    s3ConfigMapName: s3ConfigMap?.metadata.name,
-    serviceAccountName: serviceAccount?.metadata.name,
-    dependencies,
+    zookeeperNodes: keeperConnectionString,
+    releaseOpts: keeper ? { ...args.releaseOpts, dependsOn: [keeper] } : args.releaseOpts,
   });
 
+  // Create an alias service named "clickhouse" for easier access
+  // The operator creates "clickhouse-clickhouse-cluster" but applications
+  // can use the simpler "clickhouse" service name
+  const clickhouseService = createClickHouseAliasService(
+    installationName,
+    "clickhouse",
+    namespace,
+    {
+      ...args.releaseOpts,
+      dependsOn: [clickhouseInstallation],
+    }
+  );
+
   return {
-    helmRelease: pulumi.output(helmRelease),
+    clickhouseInstallation,
+    clickhouseService,
+    keeper,
     password: password.result,
-    mdsConfigSecret: pulumi.output(mdsConfigSecret),
-    s3ConfigMap: s3ConfigMap ? pulumi.output(s3ConfigMap) : undefined,
-    serviceAccount: serviceAccount ? pulumi.output(serviceAccount) : undefined,
-    iamRole: iamRole ? pulumi.output(iamRole) : undefined,
-    s3Bucket: s3Bucket ? pulumi.output(s3Bucket) : undefined,
+    mdsConfigSecret,
+    s3ConfigMap,
+    serviceAccount: serviceAccountResult.serviceAccount,
+    iamRole: serviceAccountResult.iamRole,
+    s3Bucket: s3BucketResult?.bucket,
+    kmsKey: s3BucketResult?.kmsKey,
   };
 }
-
-// Re-export types for convenience
-export * from "./types";
-export { ClickhouseS3Config } from "./s3-config-map";
-export { EksClusterInfo } from "./service-account";

@@ -1,0 +1,3 @@
+environment:
+  # IMPORTANT: Use mixed-case orgId format across the board for Azure
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE

@@ -1,12 +1,14 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import * as aws from "@pulumi/aws";
 import { createEksCluster } from "./resources/eks";
 import { createVpc } from "./resources/base-vpc/vpc";
 import { createJumpBox } from "./resources/jump-box";
 import { installTailscaleOperator } from "./resources/tailscale";
 import { createGp3StorageClass } from "./resources/storage-class-gp3";
 import { getKubeconfig } from "./utils/kubeconfig";
+import { installGatewayApiCrds } from "./resources/gateway-crds";
+import { installCertManager } from "./resources/cert-manager";
+import { deployOtelCollectorOperator } from "./resources/otel";
 
 /**
  * This function is the main function that will be called when the program is run.
@@ -42,6 +44,10 @@ async function main() {
   const tailscaleClientId = config.requireSecret("tailscaleClientId"); // From ESC environment
   const tailscaleClientSecret = config.requireSecret("tailscaleClientSecret"); // From ESC environment
   const tailscaleK8sOperatorDefaultTags = config.require("tailscaleK8sOperatorDefaultTags"); // From ESC environment
+  const tailscaleK8sProxiesDefaultTags = config.require("tailscaleK8sProxiesDefaultTags"); // From ESC environment
+  const tailscaleOperatorHostname = config.require("tailscaleOperatorHostname");
+  const createTailscaleSubnetRouter = config.getBoolean("createTailscaleSubnetRouter") ?? false;
+  const tailscaleSubnetRouterName = config.require("tailscaleSubnetRouterName");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -101,12 +107,22 @@ async function main() {
     }
   );
 
+  await installGatewayApiCrds(releaseOpts);
   await installTailscaleOperator(
     tailscaleClientId,
     tailscaleClientSecret,
     tailscaleK8sOperatorDefaultTags,
+    tailscaleK8sProxiesDefaultTags,
+    tailscaleOperatorHostname,
+    tailscaleSubnetRouterName,
+    vpcCidrBlock,
+    createTailscaleSubnetRouter,
     releaseOpts
   );
+
+  // Install cert-manager and OpenTelemetry operator
+  const certManager = await installCertManager(releaseOpts);
+  await deployOtelCollectorOperator("boreal-system", releaseOpts, certManager);
 
   // Create gp3 storage class for better performance with EBS volumes
   const gp3StorageClass = await createGp3StorageClass(eksCluster, k8sProvider);

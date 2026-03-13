@@ -1,0 +1,21 @@
+name: boreal-cust-byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+runtime: nodejs
+description: Pulumi project for Azure managed services with Redis, Event Hubs, Temporal, and ClickHouse
+
+environment:
+  # IMPORTANT: Use mixed-case orgId format across the board for Azure
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
+config:
+  # Azure setup
+  azure-native:location: centralus
+
+  # Common tags to be applied across all stacks
+  tagCloud: azure
+  tagEnvironment: boreal-byoc
+
+  # Boreal Org ID - Replace with your org ID (mixed-case format for Azure)
+  # IMPORTANT: Azure uses mixed-case orgId format everywhere (e.g., "org_33nWBYhligmqe8vaOutB3mzWid4")
+  orgId: YOUR_ORG_ID_MIXED_CASE_HERE
+
+  # Project tag will be dynamically added using pulumi.getProject()

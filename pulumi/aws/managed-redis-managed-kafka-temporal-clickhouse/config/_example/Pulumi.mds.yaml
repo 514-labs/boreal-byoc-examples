@@ -1,0 +1,23 @@
+environment:
+  # Note: Casing doesn't matter for environment values - using mixed case for consistency
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
+config:
+  # WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
+  # Only enable in environments where log data security is properly configured.
+  otelLogsEnabled: false
+  mdsChartVersion: 0.7.6
+  # IMPORTANT: MDS requires the org ID in MIXED CASE format (not lowercase)
+  mdsEnvironment: byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+  mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
+  mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
+  mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_MIXED_CASE_HERE::aws::us-east-2
+  # Optional: Moose compute class resources configuration (JSON object)
+  # mooseComputeClassResources:
+  #   your-boreal-branch-id:
+  #     volumeMounts:
+  #       - name: ddrive-pvc
+  #         storageClassName: smb157
+  #         volumeName: smb157
+  #         storage: 100Gi
+  #         mountPath: /mnt/ddrive

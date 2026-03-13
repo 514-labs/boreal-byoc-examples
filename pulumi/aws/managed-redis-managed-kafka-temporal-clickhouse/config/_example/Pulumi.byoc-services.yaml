@@ -1,0 +1,45 @@
+environment:
+  # Note: Casing doesn't matter for environment values - using mixed case for consistency
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE
+
+config:
+  # Redis (ElastiCache) Configuration
+  redisNodeType: cache.t3.micro
+  redisPort: 6379
+  redisNumCacheNodes: 2
+  redisSnapshotWindow: "09:00-13:00"
+  redisMaintenanceWindow: "sun:05:00-sun:09:00"
+  redisSnapshotRetentionLimit: 10
+  redisAutomaticFailoverEnabled: true
+
+  # Kafka (MSK) Configuration
+  kafkaEbsVolumeSize: 100
+  kafkaNumberOfBrokerNodes: 3
+  kafkaInstanceType: kafka.t3.small
+
+  # Temporal Configuration
+  temporalReplicas: 2
+  temporalCassandraReplicas: 2
+  temporalElasticsearchReplicas: 2
+  temporalNamespaceRetention: 30d
+  # Temporal Resource Allocation (optional, defaults shown)
+  temporalCassandraMemory: 2Gi
+  temporalCassandraCpu: 1000m
+  temporalServerMemory: 512Mi
+  temporalServerCpu: 500m
+
+  # ClickHouse Configuration
+  # For HA: Use 2-3 replicas (requires ClickHouse Keeper for coordination)
+  # Single node: shards=1, replicas=1 (no Keeper needed)
+  # HA setup: shards=1, replicas=2-3 (Keeper auto-deployed with 3 nodes)
+  clickhouseShards: 2
+  clickhouseReplicas: 3 # 3 replicas for HA (Keeper will be auto-deployed)
+  clickhouseRequestedCpu: 1
+  clickhouseStorageSize: 100Gi
+  clickhouseRequestedMemory: 1Gi
+
+  clickhouseS3CacheSizeGB: 10
+  clickhouseHotMaxPartSizeGB: 1
+  clickhouseHotColdMoveFactor: 0.2
+  clickhouseS3GlacierIrDays: 365
+  clickhouseS3NoncurrentExpireDays: 400

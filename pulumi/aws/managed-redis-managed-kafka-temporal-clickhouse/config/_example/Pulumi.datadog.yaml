@@ -1,0 +1,3 @@
+environment:
+  # Note: Casing doesn't matter for environment values - using mixed case for consistency
+  - default/byoc-YOUR_ORG_ID_MIXED_CASE_HERE

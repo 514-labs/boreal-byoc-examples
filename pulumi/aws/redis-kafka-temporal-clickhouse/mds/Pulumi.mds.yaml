@@ -1,4 +1,0 @@
-environment:
-  - hosting_platform-prod
-config:
-  aws:profile: sandbox-admin
