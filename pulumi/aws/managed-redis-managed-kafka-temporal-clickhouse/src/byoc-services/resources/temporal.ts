@@ -35,7 +35,7 @@ export async function installTemporal(args: TemporalArgs) {
         repo: "https://go.temporal.io/helm-charts",
       },
       chart: "temporal",
-      version: "0.65.0",
+      version: "0.73.2",
       namespace: "byoc-temporal",
       createNamespace: true,
       values: {
@@ -64,18 +64,22 @@ export async function installTemporal(args: TemporalArgs) {
             },
           },
           frontend: {
+            replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("frontend"),
             podDisruptionBudget: { maxUnavailable: 1 },
           },
           history: {
+            replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("history"),
             podDisruptionBudget: { maxUnavailable: 1 },
           },
           matching: {
+            replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("matching"),
             podDisruptionBudget: { maxUnavailable: 1 },
           },
           worker: {
+            replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("worker"),
             podDisruptionBudget: { maxUnavailable: 1 },
           },
