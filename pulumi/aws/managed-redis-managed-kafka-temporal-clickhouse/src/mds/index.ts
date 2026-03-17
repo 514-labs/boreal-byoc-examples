@@ -44,8 +44,11 @@ async function main() {
   /// Redis Configuration - Required for Communication with Boreal Web Control Plane
   const redisProdDbUrl = config.require("redisProdDBURL");
 
-  /// Branch Configuration - Optional per-branch overrides (computeClass, pod, service, customDomains)
-  const branchConfig = config.getObject<Record<string, unknown>>("branchConfig");
+  /// Unified resource configuration - project-scoped mounts plus branch-scoped overrides.
+  /// `resourceConfig` is the current key; keep `branchConfig` as a fallback for older configs.
+  const resourceConfig =
+    config.getObject<Record<string, unknown>>("resourceConfig") ??
+    config.getObject<Record<string, unknown>>("branchConfig");
 
   // Get common tags from configuration and add the dynamic Project tag
   const commonTags = {
@@ -91,7 +94,7 @@ async function main() {
       awsMdsRegion: awsRegion,
       awsBorealConnectionHub,
       redisProdDbUrl,
-      branchConfig,
+      resourceConfig,
     },
     releaseOpts
   );

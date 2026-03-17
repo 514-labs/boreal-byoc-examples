@@ -17,6 +17,7 @@ export interface MdsConfig {
   awsMdsRegion?: pulumi.Output<string>;
   awsBorealConnectionHub?: pulumi.Output<string>;
   redisProdDbUrl: string;
+  resourceConfig?: Record<string, unknown>;
   branchConfig?: Record<string, unknown>;
   // WARNING: Enabling otelLogs may expose sensitive or secure data in logs.
   // Only enable in environments where log data security is properly configured.
@@ -30,6 +31,8 @@ export interface MdsConfig {
  * @returns MDS helm resource
  */
 export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomResourceOptions) {
+  const resolvedResourceConfig = args.resourceConfig ?? args.branchConfig ?? {};
+
   const mds = new k8s.helm.v3.Release(
     "mds",
     {
@@ -63,7 +66,7 @@ export async function installMds(args: MdsConfig, releaseOpts: pulumi.CustomReso
             pullPolicy: "Always",
           },
         },
-        branchConfig: args.branchConfig ?? {},
+        resourceConfig: resolvedResourceConfig,
         mooseCache: {
           enabled: false,
         },
