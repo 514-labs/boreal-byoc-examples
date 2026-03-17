@@ -204,6 +204,83 @@ All configuration files are in `config/{org}/`:
 
 > **Note**: The `config/` directory is excluded from git. Never commit actual customer configs to the repository.
 
+### MDS Resource Config
+
+For AWS BYOC, the MDS stack reads `resourceConfig` from `Pulumi.mds.yaml` and passes it into the Helm release. The mounted `branch-config.json` now contains both `projectIds` and `branchIds`:
+
+- `projectIds`: project-scoped volume mounts that apply to every branch in that project
+- `branchIds`: exact branch-scoped pod overrides, custom domains, and optional branch-specific mount overrides
+
+Use this when you want all branches in a project to receive the same volume mounts during deploy:
+
+```yaml
+config:
+  resourceConfig:
+    projectIds:
+      "00000000-0000-0000-0000-000000000000":
+        volumeMounts:
+          - name: practice-records1
+            storageClassName: smb-practice-records1
+            storage: 100Gi
+            mountPath: /mnt/practice-records1
+```
+
+Use `branchIds` for exact branch-scoped pod overrides:
+
+```yaml
+config:
+  resourceConfig:
+    branchIds:
+      my-org-my-project-main-12345:
+        pod:
+          cpu: 8
+          memory: 16G
+```
+
+Before enabling a mount, make sure the storage backend already exists:
+
+- Project-scoped mounts under `projectIds` should stay dynamically provisioned and therefore omit `volumeName`.
+- Branch-scoped mounts under `branchIds` may still include `volumeName` when you intentionally want static binding to a specific PV.
+
+Recommended rollout:
+
+1. Update `config/{org}/Pulumi.mds.yaml` with the new `resourceConfig` entry.
+2. Deploy the `mds` stack so the resource config reaches the live MDS ConfigMap.
+3. Trigger a deploy for a matching branch.
+4. Verify the PVC and mount in the branch namespace:
+
+```bash
+kubectl get pvc -A | grep <branch-or-mount-name>
+kubectl describe pvc <pvc-name> -n <branch-namespace>
+kubectl describe pod <moose-pod> -n <branch-namespace>
+```
+
+If you want to validate the storage class before wiring it into MDS, create a one-off test PVC first:
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smb-smoke-test
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: smb-practice-records1
+  resources:
+    requests:
+      storage: 100Gi
+```
+
+```bash
+kubectl apply -f pvc.yaml
+kubectl get pvc smb-smoke-test -n default -w
+```
+
+If the test PVC never reaches `Bound`, the issue is in cluster storage setup rather than MDS.
+
+PodDisruptionBudget changes are orthogonal to this flow. New PDB handling does not change how project- or branch-scoped mounts are selected or created. The important rollout is the MDS image and chart version that understand the unified `resourceConfig` shape.
+
 ## Verify Deployment
 
 ```bash

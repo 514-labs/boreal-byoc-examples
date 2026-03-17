@@ -12,12 +12,25 @@ config:
   mdsImageTag: YOUR_IMAGE_TAG_HERE # e.g., b776bf21df
   mdsImageRepository: us-central1-docker.pkg.dev/moose-hosting-node/hosting/mds
   mdsClusterPrefix: mds::byoc::boreal::YOUR_ORG_ID_MIXED_CASE_HERE::aws::us-east-2
-  # Optional: Moose compute class resources configuration (JSON object)
-  # mooseComputeClassResources:
-  #   your-boreal-branch-id:
-  #     volumeMounts:
-  #       - name: ddrive-pvc
-  #         storageClassName: smb157
-  #         volumeName: smb157
-  #         storage: 100Gi
-  #         mountPath: /mnt/ddrive
+  # Optional: Unified project/branch resource configuration.
+  # `projectIds` applies mounts to every branch in a project and should stay dynamically provisioned.
+  # `branchIds` holds exact branch-scoped pod overrides and optional branch-specific mounts.
+  # resourceConfig:
+  #   projectIds:
+  #     "00000000-0000-0000-0000-000000000000":
+  #       volumeMounts:
+  #         - name: practice-records1
+  #           storageClassName: smb-practice-records1
+  #           storage: 100Gi
+  #           mountPath: /mnt/practice-records1
+  #   branchIds:
+  #     my-org-my-project-main-12345:
+  #       pod:
+  #         cpu: 8
+  #         memory: 16G
+  #       volumeMounts:
+  #         - name: practice-records1-override
+  #           storageClassName: smb-practice-records1
+  #           volumeName: smb-practice-records1
+  #           storage: 100Gi
+  #           mountPath: /mnt/practice-records1
