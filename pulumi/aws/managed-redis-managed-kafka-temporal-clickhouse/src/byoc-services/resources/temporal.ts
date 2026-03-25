@@ -52,6 +52,12 @@ export async function installTemporal(args: TemporalArgs) {
                 },
               ],
             },
+            metrics: {
+              prometheus: {
+                listenAddress: "0.0.0.0:9090",
+                timerType: "histogram",
+              },
+            },
           },
           resources: {
             requests: {
@@ -67,21 +73,25 @@ export async function installTemporal(args: TemporalArgs) {
             replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("frontend"),
             podDisruptionBudget: { maxUnavailable: 1 },
+            additionalAnnotations: temporalDatadogAnnotations("temporal-frontend"),
           },
           history: {
             replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("history"),
             podDisruptionBudget: { maxUnavailable: 1 },
+            additionalAnnotations: temporalDatadogAnnotations("temporal-history"),
           },
           matching: {
             replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("matching"),
             podDisruptionBudget: { maxUnavailable: 1 },
+            additionalAnnotations: temporalDatadogAnnotations("temporal-matching"),
           },
           worker: {
             replicaCount: args.serverReplicas,
             affinity: temporalComponentAntiAffinity("worker"),
             podDisruptionBudget: { maxUnavailable: 1 },
+            additionalAnnotations: temporalDatadogAnnotations("temporal-worker"),
           },
         },
         cassandra: {
@@ -208,6 +218,34 @@ function softAffinity(labels: Record<string, string>, weight = 100) {
         },
       },
     ],
+  };
+}
+
+const TEMPORAL_METRICS = [
+  "temporal_request_total",
+  "temporal_workflow_completed_total",
+  "temporal_workflow_failed_total",
+  "temporal_workflow_canceled_total",
+  "temporal_workflow_terminated_total",
+  "temporal_activity_schedule_to_start_latency",
+  "temporal_workflow_task_schedule_to_start_latency",
+  "temporal_persistence_latency",
+];
+
+function temporalDatadogAnnotations(containerName: string): Record<string, string> {
+  return {
+    [`ad.datadoghq.com/${containerName}.checks`]: JSON.stringify({
+      openmetrics: {
+        init_config: {},
+        instances: [
+          {
+            openmetrics_endpoint: "http://%%host%%:9090/metrics",
+            namespace: "temporal",
+            metrics: TEMPORAL_METRICS,
+          },
+        ],
+      },
+    }),
   };
 }
 

@@ -6,6 +6,7 @@ import { ServiceAccountManager } from "./service-account";
 import { createMdsConfigSecret } from "./mds-secret";
 import { createClickHouseInstallation, createClickHouseAliasService } from "./installation";
 import { createClickHouseKeeper, getKeeperConnectionString } from "./keeper";
+import { createClickHouseOtelCollector } from "./otel-collector";
 import { ClickhouseArgs, ClickhouseDeploymentResult } from "./types";
 
 /**
@@ -146,10 +147,22 @@ export async function deployClickhouseDatabase(
     }
   );
 
+  // Deploy OTEL Collector for ClickHouse metrics export to Datadog
+  const otelCollector = createClickHouseOtelCollector({
+    namespace: namespace,
+    clickhouseServiceName: "clickhouse",
+    metricsPort: 9363,
+    releaseOpts: {
+      ...args.releaseOpts,
+      dependsOn: [clickhouseInstallation, clickhouseService],
+    },
+  });
+
   return {
     clickhouseInstallation,
     clickhouseService,
     keeper,
+    otelCollector,
     password: password.result,
     mdsConfigSecret,
     s3ConfigMap,

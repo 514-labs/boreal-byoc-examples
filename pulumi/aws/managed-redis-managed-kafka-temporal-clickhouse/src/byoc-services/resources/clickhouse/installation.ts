@@ -98,13 +98,30 @@ export function createClickHouseInstallation(
   const serviceAccountName = args.serviceAccountName || "clickhouse";
 
   // Build the configuration files section
-  // Inline the S3 XML configuration directly (ConfigMap references don't work with the operator)
+  // Inline XML configurations directly (ConfigMap references don't work with the operator)
+  const prometheusXML = `<?xml version="1.0"?>
+<clickhouse>
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+        <status_info>true</status_info>
+    </prometheus>
+</clickhouse>`;
+
+  const baseConfigFiles: Record<string, string> = {
+    "config.d/prometheus.xml": prometheusXML,
+  };
+
   const configFilesSpec =
     args.enableS3 && args.s3StorageXML
       ? pulumi.output(args.s3StorageXML).apply((xmlContent) => ({
+          ...baseConfigFiles,
           "config.d/storage.xml": xmlContent,
         }))
-      : pulumi.output({});
+      : pulumi.output(baseConfigFiles);
 
   const installation = new k8s.apiextensions.CustomResource(
     args.name,
@@ -155,8 +172,8 @@ export function createClickHouseInstallation(
             settings: {
               "remote_servers/default/secret": args.password,
             },
-            // Configuration files (e.g., S3 storage)
-            ...(Object.keys(configFiles).length > 0 ? { files: configFiles } : {}),
+            // Configuration files (Prometheus metrics, S3 storage, etc.)
+            files: configFiles,
           },
           // Default templates to use
           defaults: {
@@ -178,6 +195,7 @@ export function createClickHouseInstallation(
                     { name: "http", port: 8123, targetPort: 8123 },
                     { name: "tcp", port: 9000, targetPort: 9000 },
                     { name: "interserver", port: 9009, targetPort: 9009 },
+                    { name: "prometheus", port: 9363, targetPort: 9363 },
                   ],
                 },
               },
@@ -196,6 +214,7 @@ export function createClickHouseInstallation(
                         { name: "http", containerPort: 8123 },
                         { name: "tcp", containerPort: 9000 },
                         { name: "interserver", containerPort: 9009 },
+                        { name: "prometheus", containerPort: 9363 },
                       ],
                       resources: {
                         requests: {
@@ -267,6 +286,7 @@ export function createClickHouseAliasService(
           { name: "http", port: 8123, targetPort: 8123 },
           { name: "tcp", port: 9000, targetPort: 9000 },
           { name: "interserver", port: 9009, targetPort: 9009 },
+          { name: "prometheus", port: 9363, targetPort: 9363 },
         ],
       },
     },
