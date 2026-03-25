@@ -204,6 +204,9 @@ export function createClickHouseInstallation(
             podTemplates: [
               {
                 name: "pod-template",
+                metadata: {
+                  annotations: clickhouseDatadogAnnotations(),
+                },
                 spec: {
                   serviceAccountName: serviceAccountName,
                   containers: [
@@ -292,4 +295,30 @@ export function createClickHouseAliasService(
     },
     releaseOpts
   );
+}
+
+const CLICKHOUSE_METRICS = [
+  "ClickHouseProfileEvents_InitialQuery",
+  "ClickHouseProfileEvents_Query",
+  "ClickHouseProfileEvents_SelectQuery",
+  "ClickHouseProfileEvents_InsertQuery",
+  "ClickHouseProfileEvents_OSCPUWaitMicroseconds",
+  "ClickHouseAsyncMetrics_Uptime",
+];
+
+function clickhouseDatadogAnnotations(): Record<string, string> {
+  return {
+    "ad.datadoghq.com/clickhouse.checks": JSON.stringify({
+      openmetrics: {
+        init_config: {},
+        instances: [
+          {
+            openmetrics_endpoint: "http://%%host%%:9363/metrics",
+            namespace: "clickhouse",
+            metrics: CLICKHOUSE_METRICS,
+          },
+        ],
+      },
+    }),
+  };
 }

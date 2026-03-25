@@ -36,9 +36,6 @@ export interface ClickhouseDeploymentResult {
   // ClickHouse Keeper (for HA replication coordination)
   keeper?: k8s.apiextensions.CustomResource;
 
-  // OTEL Collector for metrics export to Datadog
-  otelCollector: k8s.apiextensions.CustomResource;
-
   // Supporting infrastructure
   password: pulumi.Output<string>;
   mdsConfigSecret: k8s.core.v1.Secret;
